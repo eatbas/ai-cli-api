@@ -71,3 +71,49 @@ Resume example:
   "stream": false
 }
 ```
+
+### `POST /v1/test/verify`
+
+Verifies test results across multiple models using keyword matching. Accepts per-model test results (exit codes and resume response text) and checks each against expected keywords (case-insensitive).
+
+A model receives **PASS** when: NEW chat exited 0, RESUME chat exited 0, and every keyword is found in the resume response.
+
+```json
+{
+  "items": [
+    {
+      "provider": "claude",
+      "model": "sonnet",
+      "new_exit_code": 0,
+      "resume_text": "Your responsibilities include managing PF, ATM, and Transit.",
+      "resume_exit_code": 0,
+      "keywords": ["PF", "ATM", "Transit"]
+    }
+  ]
+}
+```
+
+### `POST /v1/test/generate-scenario`
+
+Uses the cheapest available model (Claude Haiku or GPT-5.4-mini) to AI-generate test scenario content. Set `field` to `"story"`, `"questions"`, `"expected"`, or `"all"`.
+
+```json
+{
+  "field": "all",
+  "workspace_path": "C:\\Github\\ai-cli-api"
+}
+```
+
+## Test Lab
+
+The web console includes a **Test Lab** section that runs automated 2-step tests across all configured models in parallel:
+
+1. **NEW** — Sends a "story" prompt to each selected model as a new chat session
+2. **RESUME** — Sends a follow-up question to each model, resuming the session from step 1
+3. **VERIFY** — Checks the resume response for expected keywords and grades each model PASS/FAIL
+
+Features:
+- Run all 9 models in parallel with one click
+- Magic buttons to AI-generate test scenarios
+- Real-time results table with progressive status updates
+- Keyword-based verification (case-insensitive)

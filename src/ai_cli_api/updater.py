@@ -26,10 +26,11 @@ class CLIPackageInfo:
 
 
 PACKAGE_REGISTRY: dict[str, CLIPackageInfo] = {
-    "claude": CLIPackageInfo(ProviderName.CLAUDE, "npm", "@anthropic-ai/claude-code"),
-    "codex":  CLIPackageInfo(ProviderName.CODEX,  "npm", "@openai/codex"),
-    "gemini": CLIPackageInfo(ProviderName.GEMINI, "npm", "@google/gemini-cli"),
-    "kimi":   CLIPackageInfo(ProviderName.KIMI,   "uv",  "kimi-cli"),
+    "claude":  CLIPackageInfo(ProviderName.CLAUDE,  "npm", "@anthropic-ai/claude-code"),
+    "codex":   CLIPackageInfo(ProviderName.CODEX,   "npm", "@openai/codex"),
+    "gemini":  CLIPackageInfo(ProviderName.GEMINI,  "npm", "@google/gemini-cli"),
+    "kimi":    CLIPackageInfo(ProviderName.KIMI,    "uv",  "kimi-cli"),
+    "copilot": CLIPackageInfo(ProviderName.COPILOT, "npm", "@github/copilot"),
 }
 
 

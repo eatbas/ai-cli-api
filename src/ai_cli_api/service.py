@@ -1,4 +1,5 @@
 import json
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -9,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 from .config import load_config
 from .models import (
+    ChatMode,
     ChatRequest,
     ChatResponse,
     CLIVersionStatus,
@@ -16,6 +18,12 @@ from .models import (
     HealthResponse,
     ProviderCapability,
     ProviderName,
+    TestGenerateRequest,
+    TestGenerateResponse,
+    TestQAPair,
+    TestVerifyRequest,
+    TestVerifyResponse,
+    TestVerifyResultItem,
     WorkerInfo,
 )
 from .updater import CLIUpdater
@@ -24,7 +32,7 @@ from .worker import WorkerManager
 UI_INDEX = Path(__file__).with_name("ui") / "index.html"
 
 API_DESCRIPTION = """\
-Warm-worker API wrapper for AI coding CLIs (Gemini, Codex, Claude, Kimi).
+Warm-worker API wrapper for AI coding CLIs (Gemini, Codex, Claude, Kimi, Copilot).
 
 The API maintains **persistent warm worker processes** for each configured
 provider/model pair, enabling low-latency prompt execution without cold-start
@@ -32,7 +40,7 @@ overhead.
 
 ## Key Concepts
 
-- **Providers** — Supported AI CLIs: `gemini`, `codex`, `claude`, `kimi`.
+- **Providers** — Supported AI CLIs: `gemini`, `codex`, `claude`, `kimi`, `copilot`.
 - **Workers** — Long-lived bash processes, one per provider/model pair,
   ready to execute prompts immediately.
 - **Sessions** — Some providers support resuming previous conversations via
@@ -60,6 +68,16 @@ When streaming, the following event types are emitted:
 | `failed` | Exited with error | `provider`, `model`, `provider_session_ref`, `exit_code`, `warnings`, `error` |
 
 See the **Schemas** section below for the full structure of each SSE event payload.
+
+## Test Lab
+
+The Test Lab endpoints enable automated multi-model testing:
+
+1. **Verify** (`POST /v1/test/verify`) — Deterministic keyword matching against resume responses.
+2. **Generate Scenario** (`POST /v1/test/generate-scenario`) — AI-powered test scenario generation using the cheapest available model.
+
+The web console includes a Test Lab UI that orchestrates a 2-step test (NEW → RESUME) across
+all selected models in parallel, then calls the verify endpoint to grade results.
 """
 
 OPENAPI_TAGS = [
@@ -84,9 +102,23 @@ OPENAPI_TAGS = [
         "description": "CLI version checking and auto-update management.",
     },
     {
+        "name": "Test Lab",
+        "description": (
+            "Multi-model test harness for comparing AI CLI behavior across providers. "
+            "Run a 2-step test (NEW chat then RESUME chat) against all selected models "
+            "in parallel, then verify that resume responses contain expected keywords."
+        ),
+    },
+    {
         "name": "Console",
         "description": "Built-in browser UI for testing the API interactively.",
     },
+]
+
+# Priority list for cheapest/fastest models used by the magic generate button.
+_CHEAPEST_MODELS = [
+    (ProviderName.CLAUDE, "haiku"),
+    (ProviderName.CODEX, "gpt-5.4-mini"),
 ]
 
 
@@ -312,4 +344,171 @@ Check `GET /v1/providers` for the `supports_resume` flag before attempting to re
     async def cli_version_update(provider: ProviderName) -> CLIVersionStatus:
         return await updater.update_single_provider(provider)
 
+    # ------------------------------------------------------------------
+    # Test Lab routes
+    # ------------------------------------------------------------------
+
+    @app.post(
+        "/v1/test/verify",
+        tags=["Test Lab"],
+        summary="Verify test results with keyword matching",
+        description=(
+            "Accepts per-model test results (exit codes and resume response text) and "
+            "checks each against a list of expected keywords (case-insensitive). "
+            "Returns a structured verdict for every model: new_status, resume_status, "
+            "per-keyword match results, and an overall PASS/FAIL grade.\n\n"
+            "A model receives **PASS** only when:\n"
+            "1. The NEW chat exited with code 0\n"
+            "2. The RESUME chat exited with code 0\n"
+            "3. Every keyword appears (case-insensitive) in the resume response text"
+        ),
+        response_model=TestVerifyResponse,
+    )
+    async def test_verify(request: TestVerifyRequest) -> TestVerifyResponse:
+        results: list[TestVerifyResultItem] = []
+        for item in request.items:
+            new_status = "OK" if item.new_exit_code == 0 else "FAIL"
+            resume_status = "OK" if item.resume_exit_code == 0 else "FAIL"
+            keyword_results = {
+                kw.strip(): kw.strip().lower() in item.resume_text.lower()
+                for kw in item.keywords
+                if kw.strip()
+            }
+            all_keywords_found = all(keyword_results.values()) if keyword_results else True
+            grade = (
+                "PASS"
+                if new_status == "OK" and resume_status == "OK" and all_keywords_found
+                else "FAIL"
+            )
+            results.append(
+                TestVerifyResultItem(
+                    provider=item.provider,
+                    model=item.model,
+                    new_status=new_status,
+                    resume_status=resume_status,
+                    keyword_results=keyword_results,
+                    grade=grade,
+                )
+            )
+        return TestVerifyResponse(results=results)
+
+    @app.post(
+        "/v1/test/generate-scenario",
+        tags=["Test Lab"],
+        summary="AI-generate a test scenario",
+        description=(
+            "Uses the cheapest available model (Claude Haiku or GPT-5.4-mini) to "
+            "generate test scenario content. Specify `field` as 'story', 'questions', "
+            "'expected', or 'all' to generate one or all three fields.\n\n"
+            "The response contains the generated text for each requested field. "
+            "Fields not requested are returned as null."
+        ),
+        response_model=TestGenerateResponse,
+        responses={
+            503: {
+                "description": "No cheap model worker is currently available.",
+                "model": ErrorDetail,
+            },
+        },
+    )
+    async def test_generate_scenario(request: TestGenerateRequest) -> TestGenerateResponse:
+        # Find cheapest ready worker
+        worker = None
+        for provider, model in _CHEAPEST_MODELS:
+            w = manager.get_worker(provider, model)
+            if w is not None and w.ready:
+                worker = w
+                break
+        if worker is None:
+            raise HTTPException(
+                status_code=503,
+                detail="No cheap model worker is currently available. Ensure haiku or gpt-5.4-mini workers are running.",
+            )
+
+        # Build prompt for generating a test scenario with multiple Q&A pairs
+        prompt_text = (
+            "Generate a test scenario for testing an AI assistant's memory. "
+            "Return ONLY a JSON object (no markdown fencing, no explanation) with:\n"
+            '- "story": A 2-3 sentence introduction about a person that includes specific facts like their name, '
+            "job title, what they manage, a personal detail (car color, pet name, hobby, favorite food, etc). "
+            'Example: "Hello my name is Sara and I am a marketing manager handling social media, SEO, and email campaigns. I have a blue bicycle."\n'
+            '- "qa_pairs": An array of 3 objects, each with "question" and "expected" keys. '
+            "Each question asks about a SPECIFIC FACT from the story. "
+            'The "expected" field is a comma-separated list of SHORT keywords (1-2 words each) that must appear in the answer. '
+            "Questions should test basic recall, not general knowledge.\n"
+            "Example qa_pairs:\n"
+            '[{"question":"What do I manage?","expected":"social media, SEO, email campaigns"},'
+            '{"question":"What color is my bicycle?","expected":"blue"},'
+            '{"question":"What is my job title?","expected":"marketing manager"}]\n'
+            "Return ONLY the JSON object."
+        )
+
+        chat_req = ChatRequest(
+            provider=worker.provider,
+            model=worker.model,
+            workspace_path=request.workspace_path,
+            mode=ChatMode.NEW,
+            prompt=prompt_text,
+            stream=False,
+        )
+        handle = await worker.submit(chat_req)
+        try:
+            result = await handle.result_future
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
+
+        # Parse the AI response
+        raw = result.final_text.strip()
+        parsed = _parse_generate_response(raw, request.field)
+        return parsed
+
     return app
+
+
+def _parse_generate_response(raw: str, field: str) -> TestGenerateResponse:
+    """Best-effort parse of AI-generated JSON from the model response."""
+
+    def _build_response(data: dict) -> TestGenerateResponse:
+        qa_pairs = []
+        raw_pairs = data.get("qa_pairs", [])
+        if isinstance(raw_pairs, list):
+            for p in raw_pairs:
+                if isinstance(p, dict) and "question" in p and "expected" in p:
+                    qa_pairs.append(TestQAPair(question=p["question"], expected=p["expected"]))
+        return TestGenerateResponse(
+            story=data.get("story"),
+            questions=data.get("questions"),
+            expected=data.get("expected"),
+            qa_pairs=qa_pairs,
+        )
+
+    # Try direct JSON parse
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return _build_response(data)
+    except json.JSONDecodeError:
+        pass
+
+    # Try extracting JSON from markdown fences
+    fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
+    if fence_match:
+        try:
+            data = json.loads(fence_match.group(1))
+            if isinstance(data, dict):
+                return _build_response(data)
+        except json.JSONDecodeError:
+            pass
+
+    # Try finding a JSON object in the text (greedy to capture nested arrays)
+    brace_match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if brace_match:
+        try:
+            data = json.loads(brace_match.group(0))
+            if isinstance(data, dict):
+                return _build_response(data)
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback: treat entire response as the story
+    return TestGenerateResponse(story=raw)

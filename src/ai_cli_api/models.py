@@ -16,6 +16,7 @@ class ProviderName(StrEnum):
     CODEX = "codex"
     CLAUDE = "claude"
     KIMI = "kimi"
+    COPILOT = "copilot"
 
 
 class ChatMode(StrEnum):
@@ -89,6 +90,15 @@ class ChatRequest(BaseModel):
                     "stream": False,
                     "provider_options": {"extra_args": ["--verbose"]},
                 },
+                {
+                    "provider": "copilot",
+                    "model": "claude-sonnet-4.5",
+                    "workspace_path": "/home/user/project",
+                    "mode": "new",
+                    "prompt": "Add unit tests for the auth module.",
+                    "stream": True,
+                    "provider_options": {},
+                },
             ]
         }
     )
@@ -141,6 +151,133 @@ class ChatResponse(BaseModel):
         }
     )
 
+
+# ---------------------------------------------------------------------------
+# Test Lab models
+# ---------------------------------------------------------------------------
+
+class TestVerifyItem(BaseModel):
+    """A single model's test results to be verified against expected keywords."""
+
+    provider: ProviderName = Field(description="Provider that was tested.")
+    model: str = Field(description="Model that was tested.")
+    new_exit_code: int = Field(description="Exit code from the NEW chat step. 0 indicates success.")
+    resume_text: str = Field(description="Full response text from the RESUME chat step.")
+    resume_exit_code: int = Field(description="Exit code from the RESUME chat step. 0 indicates success.")
+    keywords: list[str] = Field(description="Keywords expected to appear in the resume response text.")
+
+
+class TestVerifyRequest(BaseModel):
+    """Request body for verifying test results across multiple models."""
+
+    items: list[TestVerifyItem] = Field(description="List of per-model test results to verify.")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "items": [
+                        {
+                            "provider": "claude",
+                            "model": "sonnet",
+                            "new_exit_code": 0,
+                            "resume_text": "Your responsibilities include managing PF, ATM, and Transit systems.",
+                            "resume_exit_code": 0,
+                            "keywords": ["PF", "ATM", "Transit"],
+                        }
+                    ]
+                }
+            ]
+        }
+    )
+
+
+class TestVerifyResultItem(BaseModel):
+    """Verification result for a single model's test run."""
+
+    provider: ProviderName = Field(description="Provider that was tested.")
+    model: str = Field(description="Model that was tested.")
+    new_status: str = Field(description="'OK' if new chat succeeded (exit code 0), otherwise 'FAIL'.")
+    resume_status: str = Field(description="'OK' if resume chat succeeded (exit code 0), otherwise 'FAIL'.")
+    keyword_results: dict[str, bool] = Field(description="Map of each keyword to whether it was found in the resume response (case-insensitive).")
+    grade: str = Field(description="'PASS' if new and resume both OK and all keywords found, otherwise 'FAIL'.")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "provider": "claude",
+                    "model": "sonnet",
+                    "new_status": "OK",
+                    "resume_status": "OK",
+                    "keyword_results": {"PF": True, "ATM": True, "Transit": True},
+                    "grade": "PASS",
+                }
+            ]
+        }
+    )
+
+
+class TestVerifyResponse(BaseModel):
+    """Response containing verification results for all tested models."""
+
+    results: list[TestVerifyResultItem] = Field(description="Per-model verification results.")
+
+
+class TestGenerateRequest(BaseModel):
+    """Request body for AI-generating test scenario content."""
+
+    field: str = Field(
+        description="Which field(s) to generate: 'story', 'questions', 'expected', or 'all' for all three.",
+    )
+    workspace_path: str = Field(
+        min_length=1,
+        description="Absolute path to the workspace directory (passed to the underlying CLI).",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {"field": "all", "workspace_path": "C:\\Github\\ai-cli-api"},
+            ]
+        }
+    )
+
+
+class TestQAPair(BaseModel):
+    """A single question + expected keywords pair for the Test Lab."""
+
+    question: str = Field(description="Follow-up question to send as a RESUME prompt.")
+    expected: str = Field(description="Comma-separated keywords expected in the response.")
+
+
+class TestGenerateResponse(BaseModel):
+    """Response containing AI-generated test scenario content."""
+
+    story: str | None = Field(default=None, description="Generated initial prompt (the 'story') for the NEW chat step.")
+    questions: str | None = Field(default=None, description="Deprecated. Use qa_pairs instead.")
+    expected: str | None = Field(default=None, description="Deprecated. Use qa_pairs instead.")
+    qa_pairs: list[TestQAPair] = Field(default_factory=list, description="List of question/expected-keywords pairs for RESUME steps.")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "story": "Hello my name is Alice and I am a backend engineer working on authentication and payments. I drive a red car.",
+                    "qa_pairs": [
+                        {"question": "What systems am I responsible for?", "expected": "authentication, payments"},
+                        {"question": "What color is my car?", "expected": "red"},
+                        {"question": "What is my role?", "expected": "backend engineer"},
+                    ],
+                }
+            ]
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# Provider / Worker / Health models
+# ---------------------------------------------------------------------------
 
 class ProviderCapability(BaseModel):
     """Capability metadata for a registered AI CLI provider."""

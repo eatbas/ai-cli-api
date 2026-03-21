@@ -56,6 +56,12 @@ enabled = true
 executable = "{providers['kimi'].replace('\\', '\\\\')}"
 models = ["default"]
 default_options = {{ extra_args = [] }}
+
+[providers.copilot]
+enabled = true
+executable = "{providers['copilot'].replace('\\', '\\\\')}"
+models = ["claude-sonnet-4.5"]
+default_options = {{ extra_args = [] }}
 """.strip(),
         encoding="utf-8",
     )

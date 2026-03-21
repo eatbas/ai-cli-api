@@ -392,6 +392,214 @@
       margin: 0;
     }
 
+    /* ---- Test Lab ---- */
+
+    .test-lab-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .test-lab-header h2 {
+      margin: 0;
+    }
+
+    .test-lab-toggle {
+      font-size: 1.3rem;
+      transition: transform 200ms;
+      color: var(--muted);
+    }
+
+    .test-lab-toggle.open {
+      transform: rotate(90deg);
+    }
+
+    #test-lab-body {
+      display: none;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .field-magic {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .field-magic label {
+      flex: 1;
+    }
+
+    .magic-btn {
+      padding: 4px 10px;
+      font-size: 0.82rem;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+      color: white;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(139, 92, 246, 0.25);
+      transition: opacity 150ms;
+    }
+
+    .magic-btn:hover {
+      opacity: 0.85;
+    }
+
+    .magic-btn:disabled {
+      background: #ccc;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    .test-qa-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+      align-items: end;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .test-qa-row .field {
+      margin: 0;
+    }
+
+    .qa-remove-btn {
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      background: rgba(180, 35, 24, 0.08);
+      color: var(--error);
+      border: 1px solid rgba(180, 35, 24, 0.2);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .qa-remove-btn:hover {
+      background: rgba(180, 35, 24, 0.15);
+    }
+
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .model-grid label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88rem;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel-strong);
+      cursor: pointer;
+      transition: border-color 150ms;
+    }
+
+    .model-grid label:hover {
+      border-color: var(--accent);
+    }
+
+    .select-all-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .select-all-row label {
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    .test-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .test-results-wrap {
+      overflow-x: auto;
+    }
+
+    .test-results-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+
+    .test-results-table th,
+    .test-results-table td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .test-results-table th {
+      font-weight: 700;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .test-status-ok {
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .test-status-fail {
+      color: var(--error);
+      font-weight: 700;
+    }
+
+    .test-status-wait {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .grade-pass {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 8px;
+      background: rgba(15, 118, 110, 0.12);
+      color: var(--ok);
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    .grade-fail {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 8px;
+      background: rgba(180, 35, 24, 0.10);
+      color: var(--error);
+      font-weight: 700;
+      font-size: 0.82rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--line);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 600ms linear infinite;
+      vertical-align: middle;
+    }
+
     @keyframes rise {
       from {
         opacity: 0;
@@ -534,6 +742,58 @@
         <span class="meta" id="version-meta">Not checked yet.</span>
       </div>
       <div class="version-grid" id="version-grid"></div>
+    </section>
+
+    <section class="panel" id="test-lab-section">
+      <div class="test-lab-header" onclick="toggleTestLab()">
+        <h2>Test Lab</h2>
+        <span class="test-lab-toggle" id="test-lab-toggle">&#9656;</span>
+      </div>
+      <div id="test-lab-body">
+        <div class="field">
+          <label for="test-story">Story (NEW prompt)</label>
+          <textarea id="test-story" rows="3" placeholder="Hello my name is Eren and I am a fintech director managing PF, ATM and Transit. Also I have a grey car."></textarea>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 8px">Questions &amp; Expected Answers (RESUME steps)</h3>
+          <div id="test-qa-list"></div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button type="button" class="secondary" onclick="addQAPair()">+ Add Question</button>
+            <button type="button" class="magic-btn" onclick="generateScenario('all')">&#10024; Generate All Fields</button>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 8px">Models to Test</h3>
+          <div class="select-all-row">
+            <input type="checkbox" id="test-select-all" checked onchange="toggleAllTestModels(this.checked)">
+            <label for="test-select-all">Select All</label>
+          </div>
+          <div class="model-grid" id="test-model-grid"></div>
+        </div>
+
+        <div class="test-actions">
+          <button class="primary" id="run-test-btn" type="button" onclick="runTestLab()">Run Test</button>
+          <span class="meta" id="test-meta">Ready.</span>
+        </div>
+
+        <div class="test-results-wrap">
+          <table class="test-results-table" id="test-results-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Provider</th>
+                <th>Model</th>
+                <th>New</th>
+                <th>Resume</th>
+                <th>Grade</th>
+              </tr>
+            </thead>
+            <tbody id="test-results-body"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -748,6 +1008,7 @@
         modelSelect.value = savedModel;
       }
       renderWorkers();
+      renderTestLabModels();
       updateSessionVisibility();
 
       try {
@@ -899,8 +1160,270 @@
     providerSelect.addEventListener("change", renderModelOptions);
     modeSelect.addEventListener("change", updateSessionVisibility);
 
+    // ---- Test Lab ----
+
+    const testStoryEl = document.getElementById("test-story");
+    const testQAList = document.getElementById("test-qa-list");
+    const testModelGrid = document.getElementById("test-model-grid");
+    let qaCounter = 0;
+    const testResultsBody = document.getElementById("test-results-body");
+    const testMetaEl = document.getElementById("test-meta");
+    const runTestBtn = document.getElementById("run-test-btn");
+    const testLabToggle = document.getElementById("test-lab-toggle");
+    const testLabBody = document.getElementById("test-lab-body");
+
+    function addQAPair(question = "", expected = "") {
+      qaCounter++;
+      const div = document.createElement("div");
+      div.className = "test-qa-row";
+      div.dataset.index = qaCounter;
+      div.innerHTML = `
+        <div class="field">
+          <label>Question ${qaCounter}</label>
+          <input type="text" class="test-question" placeholder="What is my responsibility?" value="${question.replace(/"/g, '&quot;')}">
+        </div>
+        <div class="field">
+          <label>Expected Keywords</label>
+          <input type="text" class="test-expected" placeholder="PF, ATM, Transit" value="${expected.replace(/"/g, '&quot;')}">
+        </div>
+        <button type="button" class="qa-remove-btn" onclick="removeQAPair(this)">&#10005;</button>
+      `;
+      testQAList.appendChild(div);
+      renumberQA();
+    }
+
+    function removeQAPair(btn) {
+      btn.closest(".test-qa-row").remove();
+      renumberQA();
+    }
+
+    function renumberQA() {
+      let i = 1;
+      for (const row of testQAList.querySelectorAll(".test-qa-row")) {
+        row.querySelector("label").textContent = `Question ${i}`;
+        i++;
+      }
+    }
+
+    function getQAPairs() {
+      const pairs = [];
+      for (const row of testQAList.querySelectorAll(".test-qa-row")) {
+        const q = row.querySelector(".test-question").value.trim();
+        const kws = row.querySelector(".test-expected").value.split(",").map(k => k.trim()).filter(Boolean);
+        if (q && kws.length) pairs.push({ question: q, keywords: kws });
+      }
+      return pairs;
+    }
+
+    function toggleTestLab() {
+      const isHidden = testLabBody.style.display === "none" || testLabBody.style.display === "";
+      testLabBody.style.display = isHidden ? "grid" : "none";
+      testLabToggle.classList.toggle("open", isHidden);
+    }
+
+    function renderTestLabModels() {
+      testModelGrid.innerHTML = "";
+      for (const w of workers) {
+        const id = `test-model-${w.provider}-${w.model}`;
+        const label = document.createElement("label");
+        label.innerHTML = `<input type="checkbox" id="${id}" data-provider="${w.provider}" data-model="${w.model}" checked> ${w.provider}/${w.model}`;
+        testModelGrid.appendChild(label);
+      }
+    }
+
+    function toggleAllTestModels(checked) {
+      for (const cb of testModelGrid.querySelectorAll("input[type=checkbox]")) {
+        cb.checked = checked;
+      }
+    }
+
+    function getSelectedTestModels() {
+      const models = [];
+      for (const cb of testModelGrid.querySelectorAll("input[type=checkbox]:checked")) {
+        models.push({ provider: cb.dataset.provider, model: cb.dataset.model });
+      }
+      return models;
+    }
+
+    function setTestMeta(msg, isError = false) {
+      testMetaEl.textContent = msg;
+      testMetaEl.className = isError ? "meta error" : "meta";
+    }
+
+    function clearTestResults() {
+      testResultsBody.innerHTML = "";
+    }
+
+    function getOrCreateRow(provider, model) {
+      const rowId = `test-row-${provider}-${model}`;
+      let row = document.getElementById(rowId);
+      if (!row) {
+        row = document.createElement("tr");
+        row.id = rowId;
+        const idx = testResultsBody.children.length + 1;
+        row.innerHTML = `
+          <td>${idx}</td>
+          <td>${provider}</td>
+          <td>${model}</td>
+          <td class="test-status-wait" data-col="new"><span class="spinner"></span></td>
+          <td class="test-status-wait" data-col="resume">—</td>
+          <td data-col="grade">—</td>
+        `;
+        testResultsBody.appendChild(row);
+      }
+      return row;
+    }
+
+    function updateCell(row, col, value, cssClass) {
+      const cell = row.querySelector(`[data-col="${col}"]`);
+      if (cell) {
+        cell.textContent = value;
+        cell.className = cssClass || "";
+      }
+    }
+
+    async function generateScenario(field) {
+      const btns = document.querySelectorAll(".magic-btn");
+      btns.forEach(b => b.disabled = true);
+      setTestMeta("Generating scenario...");
+      try {
+        const resp = await fetch("/v1/test/generate-scenario", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ field, workspace_path: workspaceInput.value.trim() }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.detail || `HTTP ${resp.status}`);
+        }
+        const data = await resp.json();
+        if (data.story) testStoryEl.value = data.story;
+        // Populate Q&A pairs from the response
+        if (data.qa_pairs && Array.isArray(data.qa_pairs)) {
+          testQAList.innerHTML = "";
+          qaCounter = 0;
+          for (const pair of data.qa_pairs) {
+            addQAPair(pair.question || "", pair.expected || "");
+          }
+        }
+        setTestMeta("Scenario generated.");
+      } catch (err) {
+        setTestMeta(err.message, true);
+      } finally {
+        btns.forEach(b => b.disabled = false);
+      }
+    }
+
+    async function runTestLab() {
+      const story = testStoryEl.value.trim();
+      const qaPairs = getQAPairs();
+      const selectedModels = getSelectedTestModels();
+      const wp = workspaceInput.value.trim();
+
+      if (!story) { setTestMeta("Story is required.", true); return; }
+      if (!qaPairs.length) { setTestMeta("Add at least one question with keywords.", true); return; }
+      if (!selectedModels.length) { setTestMeta("Select at least one model.", true); return; }
+
+      runTestBtn.disabled = true;
+      clearTestResults();
+      const total = selectedModels.length;
+      let doneCount = 0;
+      setTestMeta(`Running test across ${total} model(s) with ${qaPairs.length} question(s)...`);
+
+      // Each model runs independently: NEW -> sequential RESUMEs for each Q&A pair
+      const modelPromises = selectedModels.map(({ provider, model }) => {
+        const row = getOrCreateRow(provider, model);
+        return (async () => {
+          let newData = null, newOk = false;
+
+          // Step 1: NEW
+          try {
+            const resp = await fetch("/v1/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                provider, model, workspace_path: wp,
+                mode: "new", prompt: story, stream: false,
+              }),
+            });
+            newData = await resp.json();
+            newOk = resp.ok && newData.exit_code === 0;
+          } catch (e) {
+            newOk = false;
+          }
+          updateCell(row, "new", newOk ? "OK" : "FAIL", newOk ? "test-status-ok" : "test-status-fail");
+
+          // Step 2: Sequential RESUMEs for each Q&A pair
+          let passedQAs = 0;
+          const totalQAs = qaPairs.length;
+          let allResumeTexts = "";
+
+          if (newOk && newData && newData.provider_session_ref) {
+            const resumeCell = row.querySelector('[data-col="resume"]');
+            if (resumeCell) resumeCell.innerHTML = '<span class="spinner"></span>';
+
+            for (const qa of qaPairs) {
+              let resumeData = null, resumeOk = false;
+              try {
+                const resp = await fetch("/v1/chat", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    provider, model, workspace_path: wp,
+                    mode: "resume", prompt: qa.question,
+                    provider_session_ref: newData.provider_session_ref,
+                    stream: false,
+                  }),
+                });
+                resumeData = await resp.json();
+                resumeOk = resp.ok && resumeData.exit_code === 0;
+              } catch (e) {
+                resumeOk = false;
+              }
+
+              if (resumeOk && resumeData) {
+                const text = (resumeData.final_text || "").toLowerCase();
+                allResumeTexts += " " + text;
+                const allFound = qa.keywords.every(kw => text.includes(kw.toLowerCase()));
+                if (allFound) passedQAs++;
+              }
+              // Update resume cell progressively
+              updateCell(row, "resume",
+                `${passedQAs}/${totalQAs}`,
+                passedQAs === totalQAs ? "test-status-ok" : (passedQAs > 0 ? "test-status-wait" : "test-status-fail"));
+            }
+          }
+
+          const resumeAllPassed = passedQAs === totalQAs;
+          updateCell(row, "resume",
+            newOk ? `${passedQAs}/${totalQAs}` : "FAIL",
+            resumeAllPassed && newOk ? "test-status-ok" : "test-status-fail");
+
+          // Grade
+          const isPASS = newOk && resumeAllPassed;
+          const gradeCell = row.querySelector('[data-col="grade"]');
+          if (gradeCell) {
+            gradeCell.innerHTML = `<span class="${isPASS ? "grade-pass" : "grade-fail"}">${isPASS ? "PASS" : "FAIL"}</span>`;
+          }
+
+          doneCount++;
+          setTestMeta(`Progress: ${doneCount}/${total} models completed...`);
+          return { provider, model, newOk, passedQAs, totalQAs, isPASS };
+        })();
+      });
+
+      const results = await Promise.all(modelPromises);
+      const passCount = results.filter(r => r.isPASS).length;
+      setTestMeta(`Done: ${passCount}/${results.length} PASS.`);
+      runTestBtn.disabled = false;
+    }
+
     window.addEventListener("load", async () => {
       workspaceInput.value = sessionStorage.getItem("workspace_path") || workspaceInput.defaultValue;
+      // Seed default Q&A pairs
+      addQAPair("What is my responsibility in the fintech?", "PF, ATM, Transit");
+      addQAPair("What is my car's color?", "grey");
+      addQAPair("Where am I a director at?", "fintech");
       try {
         await refreshState();
       } catch (error) {

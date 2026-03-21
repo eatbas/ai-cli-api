@@ -14,15 +14,15 @@ def test_health_and_provider_endpoints(config_path):
         health = client.get("/health")
         assert health.status_code == 200
         payload = health.json()
-        assert payload["worker_count"] == 7
+        assert payload["worker_count"] == 8
 
         providers = client.get("/v1/providers")
         assert providers.status_code == 200
-        assert len(providers.json()) == 4
+        assert len(providers.json()) == 5
 
         workers = client.get("/v1/workers")
         assert workers.status_code == 200
-        assert len(workers.json()) == 7
+        assert len(workers.json()) == 8
 
 
 def test_chat_json_and_streaming(config_path, tmp_path):
@@ -59,6 +59,24 @@ def test_chat_json_and_streaming(config_path, tmp_path):
         assert "codex:hello" in text
 
         assert not list(tmp_path.rglob("*.sqlite"))
+
+
+def test_chat_copilot_json(config_path, tmp_path):
+    app = create_app()
+    with TestClient(app) as client:
+        body = {
+            "provider": "copilot",
+            "model": "claude-sonnet-4.5",
+            "workspace_path": str(tmp_path.resolve()),
+            "mode": "new",
+            "prompt": "hello",
+            "stream": False,
+        }
+        response = client.post("/v1/chat", json=body)
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["final_text"] == "copilot:hello"
+        assert payload["provider_session_ref"]
 
 
 def test_chat_returns_404_for_unknown_worker(config_path, tmp_path):
@@ -115,6 +133,7 @@ def test_workers_endpoint_reflects_worker_state(config_path, tmp_path):
         assert "gemini" in providers_seen
         assert "codex" in providers_seen
         assert "kimi" in providers_seen
+        assert "copilot" in providers_seen
         assert all(w["ready"] for w in workers)
         assert all(not w["busy"] for w in workers)
 

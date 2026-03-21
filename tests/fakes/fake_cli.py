@@ -42,8 +42,8 @@ def emit(line: str):
     sys.stdout.flush()
 
 
-# Gemini and kimi pass the prompt via a flag; claude and codex use a positional arg.
-if provider in ("gemini",):
+# Gemini, kimi, and copilot pass the prompt via a flag; claude and codex use a positional arg.
+if provider in ("gemini", "copilot"):
     prompt = read_flag("-p") or last_non_flag(args)
 elif provider in ("kimi",):
     prompt = read_flag("--prompt") or last_non_flag(args)
@@ -90,6 +90,10 @@ elif provider == "codex":
     emit(f'{{"type":"thread.started","thread_id":"{thread_id}"}}')
     emit('{"type":"item.completed","item":{"type":"agent_message","text":"codex:' + prompt.replace('"', '\\"') + '"}}')
     emit('{"type":"turn.completed","usage":{"output_tokens":1}}')
+elif provider == "copilot":
+    session_id = read_flag("--resume") or "copilot-session-new"
+    emit(f'{{"type":"assistant.message","data":{{"content":"copilot:{prompt.replace(chr(34), chr(92)+chr(34))}","messageId":"msg-1"}}}}')
+    emit(f'{{"type":"result","sessionId":"{session_id}","exitCode":0}}')
 else:
     emit('{"error":"unknown provider"}')
     sys.exit(1)

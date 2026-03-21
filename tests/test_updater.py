@@ -59,6 +59,12 @@ class TestPackageRegistry:
         assert "codex" in PACKAGE_REGISTRY
         assert "gemini" in PACKAGE_REGISTRY
         assert "kimi" in PACKAGE_REGISTRY
+        assert "copilot" in PACKAGE_REGISTRY
+
+    def test_copilot_is_npm(self):
+        info = PACKAGE_REGISTRY["copilot"]
+        assert info.manager == "npm"
+        assert info.package == "@github/copilot"
 
     def test_claude_is_npm(self):
         info = PACKAGE_REGISTRY["claude"]
@@ -203,7 +209,7 @@ class TestCheckAndUpdateAll:
                 mock_latest.return_value = "1.0.0"
 
                 results = await u.check_and_update_all()
-                assert len(results) == 4
+                assert len(results) == 5
                 assert all(not r.needs_update for r in results)
                 mock_update.assert_not_called()
         finally:
@@ -233,8 +239,8 @@ class TestCheckAndUpdateAll:
                 mock_update.return_value = True
 
                 results = await u.check_and_update_all()
-                assert len(results) == 4
-                assert mock_update.call_count == 4
+                assert len(results) == 5
+                assert mock_update.call_count == 5
         finally:
             await manager.stop()
 
@@ -320,7 +326,7 @@ class TestLastResults:
                 mock_latest.return_value = "1.0.0"
 
                 await u.check_and_update_all()
-                assert len(u.last_results) == 4
+                assert len(u.last_results) == 5
         finally:
             await manager.stop()
 
@@ -350,7 +356,7 @@ class TestAPIEndpoints:
                 response = client.post("/v1/cli-versions/check")
                 assert response.status_code == 200
                 data = response.json()
-                assert len(data) == 4
+                assert len(data) == 5
                 for item in data:
                     assert "provider" in item
                     assert "current_version" in item
