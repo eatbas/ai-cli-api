@@ -17,7 +17,7 @@ The caller must send `provider`, `model`, `workspace_path`, and when resuming, t
 
 ```bash
 python -m venv .venv
-. .venv/Scripts/activate
+. .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -e .[dev]
 uvicorn hive_api.main:app --reload
 ```
@@ -36,7 +36,7 @@ Interactive API docs are available at `/docs` (Swagger) and `/redoc` (ReDoc).
 | **Codex**    | `codex`        | `codex-5.3`, `gpt-5.4`, `gpt-5.4-mini`  | Yes    |
 | **Claude**   | `claude`       | `opus`, `sonnet`, `haiku`                | Yes    |
 | **Kimi**     | `kimi`         | `kimi-code/kimi-for-coding`              | Yes    |
-| **Copilot**  | `copilot`      | `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.6`, `gemini-3.1-pro-preview`, `gemini-3-flash-preview`, `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.4-mini` | Yes |
+| **Copilot**  | `copilot`      | `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.6`, `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.4-mini` | Yes |
 | **OpenCode** | `opencode`     | `glm-5`, `glm-5-turbo`, `glm-4.7`       | Yes    |
 
 ## Config
@@ -75,14 +75,17 @@ auto_update = true
 #### `GET /health`
 Returns health status, shell availability, and drone boot state.
 
-#### `POST /v1/cli-versions/check`
-Triggers a version check for all provider CLIs. Returns current and latest versions for each.
-
 #### `GET /v1/cli-versions`
 Returns cached CLI version statuses (current version, latest version, update availability).
 
+#### `POST /v1/cli-versions/check`
+Triggers a version check for all provider CLIs. Returns current and latest versions for each.
+
+#### `POST /v1/cli-versions/{provider}/check`
+Checks a single provider CLI for updates. Returns `404` if the provider name is unknown.
+
 #### `POST /v1/cli-versions/{provider}/update`
-Force-updates a single provider CLI. The provider's drones are restarted after the update completes.
+Force-updates a single provider CLI. The provider's drones are restarted after the update completes. Returns `404` if the provider name is unknown.
 
 ### Providers & Models
 
@@ -105,10 +108,11 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
 {
   "provider": "claude",
   "model": "sonnet",
-  "workspace_path": "C:\\Github\\hive-api",
+  "workspace_path": "/home/user/project",
   "mode": "new",
   "prompt": "say hello in one word",
-  "stream": true
+  "stream": true,
+  "provider_options": {}
 }
 ```
 
@@ -117,11 +121,12 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
 {
   "provider": "gemini",
   "model": "gemini-3.1-pro-preview",
-  "workspace_path": "C:\\Github\\hive-api",
+  "workspace_path": "/home/user/project",
   "mode": "resume",
   "prompt": "say hi in one word",
   "provider_session_ref": "e3c7d445-d2f3-4e61-931f-62d7182902e6",
-  "stream": false
+  "stream": false,
+  "provider_options": {}
 }
 ```
 

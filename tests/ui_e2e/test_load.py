@@ -10,7 +10,7 @@ class TestPageLoad:
     def test_hero_heading_visible(self, console_page: Page):
         heading = console_page.locator("h1")
         expect(heading).to_be_visible()
-        expect(heading).to_contain_text("Probe every CLI")
+        expect(heading).to_contain_text("Command your AI colony from the hive")
 
     def test_health_status_ok(self, console_page: Page):
         status = console_page.locator("#health-status")

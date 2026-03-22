@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .config import load_config
+from .models import HealthResponse
 from .routes import (
     _parse_generate_response,
     chat_router,
@@ -89,19 +90,24 @@ def create_app() -> FastAPI:
 
     app.mount("/static", StaticFiles(directory=UI_STATIC_DIR), name="static")
 
-    @app.get("/health", tags=["Health"], summary="System health check")
-    async def health():
+    @app.get(
+        "/health",
+        tags=["Health"],
+        summary="System health check",
+        response_model=HealthResponse,
+    )
+    async def health() -> HealthResponse:
         details = colony.health_details()
         bash_version = await colony.get_bash_version()
-        return {
-            "status": "ok" if not details else "degraded",
-            "config_path": str(config.config_path),
-            "shell_path": colony.shell_path,
-            "bash_version": bash_version,
-            "drones_booted": all(drone.ready for drone in colony.drones.values()) if colony.drones else False,
-            "drone_count": len(colony.drones),
-            "details": details,
-        }
+        return HealthResponse(
+            status="ok" if not details else "degraded",
+            config_path=str(config.config_path),
+            shell_path=colony.shell_path,
+            bash_version=bash_version,
+            drones_booted=all(drone.ready for drone in colony.drones.values()) if colony.drones else False,
+            drone_count=len(colony.drones),
+            details=details,
+        )
 
     app.include_router(console_router)
     app.include_router(providers_router)
