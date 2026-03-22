@@ -5,17 +5,30 @@ cd "$(dirname "$0")"
 
 VENV_DIR=".venv"
 
-if command -v python3 &>/dev/null; then
-  PYTHON_BIN="python3"
-elif command -v python &>/dev/null; then
-  PYTHON_BIN="python"
-else
-  echo "Error: neither 'python3' nor 'python' was found on PATH."
+# Require Python 3.12+
+PYTHON_BIN=""
+for candidate in python3.14 python3.13 python3.12; do
+  if command -v "$candidate" &>/dev/null; then
+    PYTHON_BIN="$candidate"
+    break
+  fi
+done
+
+if [ -z "$PYTHON_BIN" ]; then
+  echo "Error: Python 3.12 or newer is required but was not found on PATH."
+  echo "Install it via: brew install python@3.12"
   exit 1
 fi
 
-# Create venv if it doesn't exist
-if [ ! -d "$VENV_DIR" ]; then
+# Detect venv Python path (Unix vs Windows)
+VENV_PYTHON="$VENV_DIR/bin/python"
+[ -f "$VENV_DIR/Scripts/python" ] && VENV_PYTHON="$VENV_DIR/Scripts/python"
+
+# Recreate venv if missing or built with Python < 3.12
+if [ -f "$VENV_PYTHON" ] && "$VENV_PYTHON" -c "import sys; exit(0 if sys.version_info >= (3,12) else 1)" 2>/dev/null; then
+  : # venv is valid
+else
+  [ -d "$VENV_DIR" ] && echo "Existing venv has wrong Python version — recreating..." && rm -rf "$VENV_DIR"
   echo "Creating virtual environment..."
   "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
@@ -31,6 +44,7 @@ fi
 # Install the package if uvicorn isn't available yet
 if ! command -v uvicorn &>/dev/null; then
   echo "Installing dependencies..."
+  python -m pip install --quiet --upgrade pip
   python -m pip install --quiet -e ".[dev]"
 fi
 
