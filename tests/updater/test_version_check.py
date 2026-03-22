@@ -4,16 +4,16 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ai_cli_api.config import UpdaterConfig
-from ai_cli_api.models import ProviderName
-from ai_cli_api.updater import (
+from hive_api.config import UpdaterConfig
+from hive_api.models import ProviderName
+from hive_api.updater import (
     CLIPackageInfo,
     CLIUpdater,
     PACKAGE_REGISTRY,
     _parse_version,
     _version_tuple,
 )
-from ai_cli_api.worker import WorkerManager
+from hive_api.colony import Colony
 
 
 class TestParseVersion:
@@ -80,7 +80,7 @@ class TestPackageRegistry:
 
 @pytest.fixture()
 def updater(loaded_config):
-    manager = WorkerManager(loaded_config)
+    manager = Colony(loaded_config)
     config = UpdaterConfig(enabled=True, interval_hours=4.0, auto_update=True)
     return CLIUpdater(manager=manager, config=config)
 
@@ -139,12 +139,12 @@ class TestGetLatestVersion:
 
 class TestIsProviderIdle:
     @pytest.mark.asyncio()
-    async def test_idle_when_no_workers(self, updater):
+    async def test_idle_when_no_drones(self, updater):
         assert updater.is_provider_idle(ProviderName.CLAUDE) is True
 
     @pytest.mark.asyncio()
-    async def test_idle_when_workers_not_busy(self, loaded_config):
-        manager = WorkerManager(loaded_config)
+    async def test_idle_when_drones_not_busy(self, loaded_config):
+        manager = Colony(loaded_config)
         await manager.start()
         try:
             config = UpdaterConfig(enabled=True, interval_hours=4.0, auto_update=True)
@@ -157,7 +157,7 @@ class TestIsProviderIdle:
 class TestAPIEndpoints:
     def test_cli_versions_returns_empty_initially(self, config_path):
         from fastapi.testclient import TestClient
-        from ai_cli_api.service import create_app
+        from hive_api.service import create_app
 
         app = create_app()
         with TestClient(app) as client:
@@ -167,12 +167,12 @@ class TestAPIEndpoints:
 
     def test_cli_versions_check_returns_results(self, config_path):
         from fastapi.testclient import TestClient
-        from ai_cli_api.service import create_app
+        from hive_api.service import create_app
 
         app = create_app()
         with TestClient(app) as client:
-            with patch("ai_cli_api.updater.updater.CLIUpdater.get_current_version", new_callable=AsyncMock) as mock_curr, patch(
-                "ai_cli_api.updater.updater.CLIUpdater.get_latest_version", new_callable=AsyncMock
+            with patch("hive_api.updater.updater.CLIUpdater.get_current_version", new_callable=AsyncMock) as mock_curr, patch(
+                "hive_api.updater.updater.CLIUpdater.get_latest_version", new_callable=AsyncMock
             ) as mock_latest:
                 mock_curr.return_value = "1.0.0"
                 mock_latest.return_value = "1.0.0"

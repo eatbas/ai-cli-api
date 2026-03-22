@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI CLI API Console</title>
+  <title>Hive Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -13,16 +13,16 @@
   <main class="shell">
     <section class="hero panel">
       <span class="eyebrow">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-        Warm Worker Console
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Hive Colony
       </span>
-      <h1>Probe every CLI without leaving the browser.</h1>
-      <p>Use the local wrapper API to run new/resumed prompts and inspect warm workers.</p>
+      <h1>Command your AI colony from the hive.</h1>
+      <p>Dispatch prompts, inspect drones, and orchestrate providers from a single honeycomb.</p>
       <div class="status-strip">
         <div class="stat"><span class="stat-label">API Status</span><span class="stat-value" id="health-status">Loading&#8230;</span></div>
         <div class="stat"><span class="stat-label">Shell</span><span class="stat-value" id="shell-path">Loading&#8230;</span></div>
         <div class="stat"><span class="stat-label">Bash Version</span><span class="stat-value" id="bash-version">Loading&#8230;</span></div>
-        <div class="stat"><span class="stat-label">Workers</span><span class="stat-value" id="worker-count">0</span></div>
+        <div class="stat"><span class="stat-label">Drones</span><span class="stat-value" id="drone-count">0</span></div>
       </div>
     </section>
 
@@ -59,7 +59,7 @@
           <div class="field"><label for="prompt">Prompt</label><textarea id="prompt" placeholder="Enter your prompt&#8230;"></textarea></div>
           <div class="actions">
             <button id="send-button" class="primary" type="submit">Send Request</button>
-            <button id="refresh-button" class="secondary" type="button">Refresh Worker State</button>
+            <button id="refresh-button" class="secondary" type="button">Refresh Drone State</button>
           </div>
           <div id="request-meta" class="meta">Ready.</div>
         </form>
@@ -80,8 +80,8 @@
           </div>
           <div id="console" class="console"></div>
         </div>
-        <h2>Warm Workers</h2>
-        <div id="worker-list" class="worker-grid"></div>
+        <h2>Drones</h2>
+        <div id="drone-list" class="drone-grid"></div>
       </div>
     </section>
 

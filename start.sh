@@ -34,8 +34,8 @@ if ! command -v uvicorn &>/dev/null; then
   python -m pip install --quiet -e ".[dev]"
 fi
 
-HOST="${AI_CLI_API_HOST:-127.0.0.1}"
-PORT="${AI_CLI_API_PORT:-8000}"
+HOST="${HIVE_API_HOST:-127.0.0.1}"
+PORT="${HIVE_API_PORT:-8000}"
 
 echo "Checking CLI availability..."
 for cli in claude gemini codex kimi copilot opencode; do
@@ -47,5 +47,5 @@ for cli in claude gemini codex kimi copilot opencode; do
 done
 echo ""
 
-echo "Starting AI CLI API on http://${HOST}:${PORT}"
-exec python -m uvicorn ai_cli_api.main:app --host "$HOST" --port "$PORT"
+echo "Starting Hive on http://${HOST}:${PORT}"
+exec python -m uvicorn hive_api.main:app --host "$HOST" --port "$PORT"

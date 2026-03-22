@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from ..config import UpdaterConfig
 from ..models import CLIVersionStatus, ProviderName
-from ..worker import WorkerManager
+from ..colony import Colony
 from .registry import CLIPackageInfo, PACKAGE_REGISTRY, needs_update as _needs_update
 from .single_provider import update_single_provider_impl
 from .version_checker import (
@@ -15,13 +15,13 @@ from .version_checker import (
     run_cmd,
 )
 
-logger = logging.getLogger("ai_cli_api.updater")
+logger = logging.getLogger("hive_api.updater")
 
 
 class CLIUpdater:
-    """Periodically checks CLI versions and auto-updates when workers are idle."""
+    """Periodically checks CLI versions and auto-updates when drones are idle."""
 
-    def __init__(self, manager: WorkerManager, config: UpdaterConfig) -> None:
+    def __init__(self, manager: Colony, config: UpdaterConfig) -> None:
         self.manager = manager
         self.config = config
         self._last_results: list[CLIVersionStatus] = []
@@ -42,34 +42,34 @@ class CLIUpdater:
         return await get_latest_version(manager=self.manager, runner=self._run_cmd, pkg_info=pkg_info)
 
     def is_provider_idle(self, provider: ProviderName) -> bool:
-        workers = self.manager.workers_for_provider(provider)
-        if not workers:
+        drones = self.manager.drones_for_provider(provider)
+        if not drones:
             return True
-        return all(not worker.busy and worker.queue.qsize() == 0 for worker in workers)
+        return all(not drone.busy and drone.queue.qsize() == 0 for drone in drones)
 
     async def update_cli(self, pkg_info: CLIPackageInfo) -> bool:
         logger.info("Updating %s (%s) ...", pkg_info.package, pkg_info.manager)
 
         if pkg_info.manager == "npm":
-            cmd_str = f"npm install -g {pkg_info.package}@latest 2>&1\n__ai_cli_exit=$?"
+            cmd_str = f"npm install -g {pkg_info.package}@latest 2>&1\n__hive_exit=$?"
         elif pkg_info.manager == "uv":
-            cmd_str = f"uv tool upgrade {pkg_info.package} --no-cache 2>&1\n__ai_cli_exit=$?"
+            cmd_str = f"uv tool upgrade {pkg_info.package} --no-cache 2>&1\n__hive_exit=$?"
         else:
             return False
 
-        worker = self.manager.get_idle_worker(pkg_info.provider)
-        if worker is not None and worker.ready:
+        drone = self.manager.get_idle_drone(pkg_info.provider)
+        if drone is not None and drone.ready:
             try:
-                code, output = await worker.run_quick_command(cmd_str, timeout=120)
+                code, output = await drone.run_quick_command(cmd_str, timeout=120)
                 if code == 0:
                     logger.info("Successfully updated %s", pkg_info.package)
                     return True
                 logger.error("Update failed for %s (shell): %s", pkg_info.package, output)
                 return False
             except asyncio.TimeoutError:
-                logger.warning("Shell update timed out for %s, restarting worker shell", pkg_info.package)
-                await worker.stop()
-                await worker.start()
+                logger.warning("Shell update timed out for %s, restarting drone shell", pkg_info.package)
+                await drone.stop()
+                await drone.start()
                 return False
             except Exception:
                 logger.debug("Shell update failed for %s, falling back to subprocess", pkg_info.package)
@@ -152,8 +152,8 @@ class CLIUpdater:
                 else:
                     skip_reason = "update command failed"
             else:
-                skip_reason = "workers busy"
-                logger.warning("Skipping update for %s: workers are busy", provider.value)
+                skip_reason = "drones busy"
+                logger.warning("Skipping update for %s: drones are busy", provider.value)
         elif update_needed and not self.config.auto_update:
             skip_reason = "auto_update disabled"
 

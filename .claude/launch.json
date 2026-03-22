@@ -4,7 +4,7 @@
     {
       "name": "api",
       "runtimeExecutable": ".venv/bin/python",
-      "runtimeArgs": ["-m", "uvicorn", "ai_cli_api.main:app", "--host", "127.0.0.1", "--port", "8001", "--reload"],
+      "runtimeArgs": ["-m", "uvicorn", "hive_api.main:app", "--host", "127.0.0.1", "--port", "8001", "--reload"],
       "port": 8001
     }
   ]

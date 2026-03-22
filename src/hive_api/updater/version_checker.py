@@ -7,10 +7,10 @@ import subprocess
 from collections.abc import Awaitable, Callable
 
 from ..models import ProviderName
-from ..worker import WarmWorker, WorkerManager
+from ..colony import Drone, Colony
 from .registry import CLIPackageInfo, _parse_version
 
-logger = logging.getLogger("ai_cli_api.updater")
+logger = logging.getLogger("hive_api.updater")
 _CMD_TIMEOUT = 60
 
 RunCmd = Callable[..., Awaitable[tuple[int, str]]]
@@ -38,16 +38,16 @@ async def run_cmd(*args: str, timeout: int = _CMD_TIMEOUT) -> tuple[int, str]:
 
 async def get_current_version(
     *,
-    manager: WorkerManager,
+    manager: Colony,
     runner: RunCmd,
     executable: str,
     provider: ProviderName | None = None,
 ) -> str | None:
     if provider is not None:
-        worker = manager.get_idle_worker(provider)
-        if worker is not None and worker.ready:
+        drone = manager.get_idle_drone(provider)
+        if drone is not None and drone.ready:
             try:
-                code, output = await worker.run_quick_command(f"{executable} --version 2>&1\n__ai_cli_exit=$?")
+                code, output = await drone.run_quick_command(f"{executable} --version 2>&1\n__hive_exit=$?")
                 if code == 0 and output:
                     version = _parse_version(output)
                     if version:
@@ -62,11 +62,11 @@ async def get_current_version(
     return _parse_version(output)
 
 
-async def get_latest_version(*, manager: WorkerManager, runner: RunCmd, pkg_info: CLIPackageInfo) -> str | None:
-    worker = manager.get_idle_worker(pkg_info.provider)
-    if worker is not None and worker.ready:
+async def get_latest_version(*, manager: Colony, runner: RunCmd, pkg_info: CLIPackageInfo) -> str | None:
+    drone = manager.get_idle_drone(pkg_info.provider)
+    if drone is not None and drone.ready:
         try:
-            result = await get_latest_version_via_shell(worker=worker, pkg_info=pkg_info)
+            result = await get_latest_version_via_shell(drone=drone, pkg_info=pkg_info)
             if result:
                 return result
         except Exception:
@@ -74,13 +74,13 @@ async def get_latest_version(*, manager: WorkerManager, runner: RunCmd, pkg_info
     return await get_latest_version_subprocess(runner=runner, pkg_info=pkg_info)
 
 
-async def get_latest_version_via_shell(*, worker: WarmWorker, pkg_info: CLIPackageInfo) -> str | None:
+async def get_latest_version_via_shell(*, drone: Drone, pkg_info: CLIPackageInfo) -> str | None:
     if pkg_info.manager == "npm":
-        code, output = await worker.run_quick_command(f"npm view {pkg_info.package} version 2>&1\n__ai_cli_exit=$?")
+        code, output = await drone.run_quick_command(f"npm view {pkg_info.package} version 2>&1\n__hive_exit=$?")
         if code == 0 and output:
             return _parse_version(output)
     elif pkg_info.manager == "uv":
-        code, output = await worker.run_quick_command("uv tool list 2>&1\n__ai_cli_exit=$?")
+        code, output = await drone.run_quick_command("uv tool list 2>&1\n__hive_exit=$?")
         if code == 0 and output:
             for line in output.splitlines():
                 if pkg_info.package in line:

@@ -1,6 +1,6 @@
-from ai_cli_api.models import ChatMode
-from ai_cli_api.providers.base import ParseState
-from ai_cli_api.providers.claude import ClaudeAdapter
+from hive_api.models import ChatMode
+from hive_api.providers.base import ParseState
+from hive_api.providers.claude import ClaudeAdapter
 
 
 def test_claude_new_command_assigns_session_id():

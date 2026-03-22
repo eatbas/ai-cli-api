@@ -6,7 +6,7 @@ from .provider import (
     HealthResponse,
     ModelDetail,
     ProviderCapability,
-    WorkerInfo,
+    DroneInfo,
 )
 from .sse import SSECompleted, SSEFailed, SSEOutputDelta, SSEProviderSession, SSERunStarted
 from .testlab import (
@@ -33,7 +33,7 @@ __all__ = [
     "TestGenerateResponse",
     "ProviderCapability",
     "ModelDetail",
-    "WorkerInfo",
+    "DroneInfo",
     "HealthResponse",
     "CLIVersionStatus",
     "ErrorDetail",

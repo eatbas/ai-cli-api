@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from ai_cli_api.models import ChatMode, ChatRequest, ProviderName
-from ai_cli_api.worker import WorkerManager
+from hive_api.models import ChatMode, ChatRequest, ProviderName
+from hive_api.colony import Colony
 
 
 def _new_request(provider, model, prompt="hello", workspace=None):
@@ -21,49 +21,49 @@ def _new_request(provider, model, prompt="hello", workspace=None):
 
 
 @pytest.mark.asyncio()
-async def test_worker_manager_boots_all_workers(loaded_config):
-    manager = WorkerManager(loaded_config)
+async def test_colony_boots_all_drones(loaded_config):
+    manager = Colony(loaded_config)
     await manager.start()
     try:
-        workers = manager.worker_info()
-        assert len(workers) == 9
-        assert all(worker.ready for worker in workers)
+        drones = manager.drone_info()
+        assert len(drones) == 9
+        assert all(drone.ready for drone in drones)
     finally:
         await manager.stop()
 
 
 @pytest.mark.asyncio()
-async def test_worker_ready_busy_idle_lifecycle(loaded_config):
-    manager = WorkerManager(loaded_config)
+async def test_drone_ready_busy_idle_lifecycle(loaded_config):
+    manager = Colony(loaded_config)
     await manager.start()
     try:
-        worker = manager.get_worker(ProviderName.CLAUDE, "sonnet")
-        assert worker is not None
-        assert worker.ready
-        assert not worker.busy
+        drone = manager.get_drone(ProviderName.CLAUDE, "sonnet")
+        assert drone is not None
+        assert drone.ready
+        assert not drone.busy
 
-        handle = await worker.submit(_new_request(ProviderName.CLAUDE, "sonnet"))
+        handle = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet"))
         result = await handle.result_future
         assert result.exit_code == 0
-        assert not worker.busy
-        assert worker.ready
+        assert not drone.busy
+        assert drone.ready
     finally:
         await manager.stop()
 
 
 @pytest.mark.asyncio()
 async def test_resume_rejects_model_change_in_same_runtime(loaded_config):
-    manager = WorkerManager(loaded_config)
+    manager = Colony(loaded_config)
     await manager.start()
     try:
-        worker = manager.get_worker(ProviderName.GEMINI, "gemini-2.5-pro")
-        assert worker is not None
-        handle = await worker.submit(_new_request(ProviderName.GEMINI, "gemini-2.5-pro"))
+        drone = manager.get_drone(ProviderName.GEMINI, "gemini-2.5-pro")
+        assert drone is not None
+        handle = await drone.submit(_new_request(ProviderName.GEMINI, "gemini-2.5-pro"))
         result = await handle.result_future
         assert result.provider_session_ref == "gemini-session-new"
 
-        alt_worker = manager.get_worker(ProviderName.GEMINI, "gemini-2.5-flash")
-        assert alt_worker is not None
+        alt_drone = manager.get_drone(ProviderName.GEMINI, "gemini-2.5-flash")
+        assert alt_drone is not None
         resume_request = ChatRequest(
             provider=ProviderName.GEMINI,
             model="gemini-2.5-flash",
@@ -73,7 +73,7 @@ async def test_resume_rejects_model_change_in_same_runtime(loaded_config):
             provider_session_ref=result.provider_session_ref,
             stream=False,
         )
-        handle = await alt_worker.submit(resume_request)
+        handle = await alt_drone.submit(resume_request)
         with pytest.raises(Exception):
             await handle.result_future
     finally:
@@ -81,16 +81,16 @@ async def test_resume_rejects_model_change_in_same_runtime(loaded_config):
 
 
 @pytest.mark.asyncio()
-async def test_concurrent_requests_serialize_on_same_worker(loaded_config):
-    """Two requests to the same worker should run one after the other."""
-    manager = WorkerManager(loaded_config)
+async def test_concurrent_requests_serialize_on_same_drone(loaded_config):
+    """Two requests to the same drone should run one after the other."""
+    manager = Colony(loaded_config)
     await manager.start()
     try:
-        worker = manager.get_worker(ProviderName.CLAUDE, "sonnet")
-        assert worker is not None
+        drone = manager.get_drone(ProviderName.CLAUDE, "sonnet")
+        assert drone is not None
 
-        h1 = await worker.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="first"))
-        h2 = await worker.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="second"))
+        h1 = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="first"))
+        h2 = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="second"))
 
         r1, r2 = await asyncio.gather(h1.result_future, h2.result_future)
         assert "first" in r1.final_text
@@ -100,46 +100,46 @@ async def test_concurrent_requests_serialize_on_same_worker(loaded_config):
 
 
 @pytest.mark.asyncio()
-async def test_get_worker_returns_none_for_unknown(loaded_config):
-    manager = WorkerManager(loaded_config)
+async def test_get_drone_returns_none_for_unknown(loaded_config):
+    manager = Colony(loaded_config)
     await manager.start()
     try:
-        assert manager.get_worker(ProviderName.CLAUDE, "nonexistent") is None
+        assert manager.get_drone(ProviderName.CLAUDE, "nonexistent") is None
     finally:
         await manager.stop()
 
 
 @pytest.mark.asyncio()
-async def test_failed_prompt_sets_worker_error(loaded_config):
-    manager = WorkerManager(loaded_config)
+async def test_failed_prompt_sets_drone_error(loaded_config):
+    manager = Colony(loaded_config)
     await manager.start()
     try:
-        worker = manager.get_worker(ProviderName.CLAUDE, "sonnet")
-        assert worker is not None
-        handle = await worker.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="fail"))
+        drone = manager.get_drone(ProviderName.CLAUDE, "sonnet")
+        assert drone is not None
+        handle = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="fail"))
         with pytest.raises(Exception):
             await handle.result_future
-        assert worker.last_error is not None
+        assert drone.last_error is not None
     finally:
         await manager.stop()
 
 
 @pytest.mark.asyncio()
-async def test_worker_recovers_after_failure(loaded_config):
+async def test_drone_recovers_after_failure(loaded_config):
     """After a failure, the next request should still work."""
-    manager = WorkerManager(loaded_config)
+    manager = Colony(loaded_config)
     await manager.start()
     try:
-        worker = manager.get_worker(ProviderName.CODEX, "codex-5.3")
-        assert worker is not None
+        drone = manager.get_drone(ProviderName.CODEX, "codex-5.3")
+        assert drone is not None
 
         # First request fails
-        h1 = await worker.submit(_new_request(ProviderName.CODEX, "codex-5.3", prompt="fail"))
+        h1 = await drone.submit(_new_request(ProviderName.CODEX, "codex-5.3", prompt="fail"))
         with pytest.raises(Exception):
             await h1.result_future
 
-        # Second request should succeed (worker recovers)
-        h2 = await worker.submit(_new_request(ProviderName.CODEX, "codex-5.3", prompt="recover"))
+        # Second request should succeed (drone recovers)
+        h2 = await drone.submit(_new_request(ProviderName.CODEX, "codex-5.3", prompt="recover"))
         r2 = await h2.result_future
         assert "recover" in r2.final_text
     finally:
@@ -147,12 +147,12 @@ async def test_worker_recovers_after_failure(loaded_config):
 
 
 @pytest.mark.asyncio()
-async def test_health_details_reports_worker_errors(loaded_config):
-    manager = WorkerManager(loaded_config)
+async def test_health_details_reports_drone_errors(loaded_config):
+    manager = Colony(loaded_config)
     await manager.start()
     try:
-        worker = manager.get_worker(ProviderName.CLAUDE, "sonnet")
-        handle = await worker.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="fail"))
+        drone = manager.get_drone(ProviderName.CLAUDE, "sonnet")
+        handle = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="fail"))
         with pytest.raises(Exception):
             await handle.result_future
 
@@ -164,8 +164,8 @@ async def test_health_details_reports_worker_errors(loaded_config):
 
 
 @pytest.mark.asyncio()
-async def test_unavailable_provider_skips_worker_creation(loaded_config):
-    """When a CLI is not found, no workers should be created for that provider."""
+async def test_unavailable_provider_skips_drone_creation(loaded_config):
+    """When a CLI is not found, no drones should be created for that provider."""
     import shutil
 
     original_which = shutil.which
@@ -175,16 +175,16 @@ async def test_unavailable_provider_skips_worker_creation(loaded_config):
             return None
         return original_which(cmd, **kwargs)
 
-    with patch("ai_cli_api.providers.base.shutil.which", side_effect=_fake_which):
-        manager = WorkerManager(loaded_config)
+    with patch("hive_api.providers.base.shutil.which", side_effect=_fake_which):
+        manager = Colony(loaded_config)
         await manager.start()
         try:
-            assert manager.get_worker(ProviderName.CLAUDE, "sonnet") is None
-            assert manager.get_worker(ProviderName.CLAUDE, "opus") is None
+            assert manager.get_drone(ProviderName.CLAUDE, "sonnet") is None
+            assert manager.get_drone(ProviderName.CLAUDE, "opus") is None
             assert manager.available_providers[ProviderName.CLAUDE] is False
 
-            # Other providers should still have workers
-            assert manager.get_worker(ProviderName.GEMINI, "gemini-2.5-flash") is not None
+            # Other providers should still have drones
+            assert manager.get_drone(ProviderName.GEMINI, "gemini-2.5-flash") is not None
             assert manager.available_providers[ProviderName.GEMINI] is True
 
             # capabilities() should report available=False for claude
@@ -198,7 +198,7 @@ async def test_unavailable_provider_skips_worker_creation(loaded_config):
 @pytest.mark.asyncio()
 async def test_capabilities_include_available_field(loaded_config):
     """All providers should have the available field in capabilities."""
-    manager = WorkerManager(loaded_config)
+    manager = Colony(loaded_config)
     await manager.start()
     try:
         caps = manager.capabilities()

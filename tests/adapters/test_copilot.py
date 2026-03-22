@@ -1,6 +1,6 @@
-from ai_cli_api.models import ChatMode
-from ai_cli_api.providers.base import ParseState
-from ai_cli_api.providers.copilot import CopilotAdapter
+from hive_api.models import ChatMode
+from hive_api.providers.base import ParseState
+from hive_api.providers.copilot import CopilotAdapter
 
 
 def test_copilot_new_command_includes_required_flags():

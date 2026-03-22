@@ -14,7 +14,7 @@ router = APIRouter(tags=["Console"])
     "/",
     response_class=HTMLResponse,
     summary="Web test console",
-    description="Serves the built-in HTML console for interacting with workers in a browser.",
+    description="Serves the built-in Hive Console for interacting with drones in a browser.",
 )
 async def index() -> HTMLResponse:
     return HTMLResponse(UI_INDEX.read_text(encoding="utf-8"))

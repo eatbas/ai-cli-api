@@ -17,7 +17,7 @@ from ..models import (
     TestVerifyResponse,
     TestVerifyResultItem,
 )
-from ._deps import get_manager
+from ._deps import get_colony
 
 router = APIRouter(tags=["Test Lab"])
 
@@ -57,20 +57,20 @@ async def test_verify(request: TestVerifyRequest) -> TestVerifyResponse:
     "/v1/test/generate-scenario",
     summary="AI-generate a test scenario",
     response_model=TestGenerateResponse,
-    responses={503: {"description": "No cheap model worker is available.", "model": ErrorDetail}},
+    responses={503: {"description": "No cheap model drone is available.", "model": ErrorDetail}},
 )
 async def test_generate_scenario(request: Request, body: TestGenerateRequest) -> TestGenerateResponse:
-    manager = get_manager(request)
-    worker = None
+    colony = get_colony(request)
+    drone = None
     for provider, model in _CHEAPEST_MODELS:
-        candidate = manager.get_worker(provider, model)
+        candidate = colony.get_drone(provider, model)
         if candidate is not None and candidate.ready:
-            worker = candidate
+            drone = candidate
             break
-    if worker is None:
+    if drone is None:
         raise HTTPException(
             status_code=503,
-            detail="No cheap model worker is currently available. Ensure haiku or gpt-5.4-mini workers are running.",
+            detail="No cheap model drone is currently available. Ensure haiku or gpt-5.4-mini drones are running.",
         )
 
     prompt_text = (
@@ -83,14 +83,14 @@ async def test_generate_scenario(request: Request, body: TestGenerateRequest) ->
     )
 
     chat_req = ChatRequest(
-        provider=worker.provider,
-        model=worker.model,
+        provider=drone.provider,
+        model=drone.model,
         workspace_path=body.workspace_path,
         mode=ChatMode.NEW,
         prompt=prompt_text,
         stream=False,
     )
-    handle = await worker.submit(chat_req)
+    handle = await drone.submit(chat_req)
     try:
         result = await handle.result_future
     except Exception as exc:

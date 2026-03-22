@@ -1,6 +1,6 @@
-from ai_cli_api.models import ChatMode
-from ai_cli_api.providers.base import ParseState
-from ai_cli_api.providers.kimi import KimiAdapter
+from hive_api.models import ChatMode
+from hive_api.providers.base import ParseState
+from hive_api.providers.kimi import KimiAdapter
 
 
 def test_kimi_new_command_assigns_session():

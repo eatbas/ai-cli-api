@@ -1,6 +1,6 @@
-from ai_cli_api.models import ChatMode
-from ai_cli_api.providers.base import ParseState
-from ai_cli_api.providers.opencode import OpenCodeAdapter
+from hive_api.models import ChatMode
+from hive_api.providers.base import ParseState
+from hive_api.providers.opencode import OpenCodeAdapter
 
 
 def test_opencode_new_command_includes_format_json():

@@ -66,7 +66,7 @@ async def update_single_provider_impl(updater: "CLIUpdater", provider: ProviderN
             needs_update=_needs_update(current, latest),
             now=now,
             next_check=next_check,
-            skip_reason="workers busy",
+            skip_reason="drones busy",
         )
         updater._cache_single(result)
         return result

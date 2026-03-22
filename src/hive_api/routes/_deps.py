@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING
 from fastapi import Request
 
 if TYPE_CHECKING:
+    from ..colony import Colony
     from ..updater import CLIUpdater
-    from ..worker import WorkerManager
 
 
-def get_manager(request: Request) -> WorkerManager:
-    """Retrieve the WorkerManager from application state."""
-    return request.app.state.worker_manager
+def get_colony(request: Request) -> Colony:
+    """Retrieve the Colony from application state."""
+    return request.app.state.colony
 
 
 def get_updater(request: Request) -> CLIUpdater:

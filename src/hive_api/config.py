@@ -66,7 +66,7 @@ def _default_provider_map(raw: dict[str, Any]) -> dict[ProviderName, ProviderCon
 def load_config(path: str | os.PathLike[str] | None = None) -> AppConfig:
     config_path = Path(
         path
-        or os.environ.get("AI_CLI_API_CONFIG")
+        or os.environ.get("HIVE_API_CONFIG")
         or Path.cwd() / "config.toml"
     )
     if not config_path.exists():

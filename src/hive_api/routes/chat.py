@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ..models import ChatRequest, ChatResponse, ErrorDetail
-from ..worker import JobHandle
-from ._deps import get_manager
+from ..colony import JobHandle
+from ._deps import get_colony
 
 router = APIRouter()
 
@@ -29,20 +29,20 @@ async def _stream_handle_events(handle: JobHandle) -> AsyncIterator[str]:
     summary="Send a prompt to an AI provider",
     response_model=ChatResponse,
     responses={
-        404: {"description": "No warm worker configured for provider/model.", "model": ErrorDetail},
+        404: {"description": "No drone configured for provider/model.", "model": ErrorDetail},
         500: {"description": "Provider CLI crashed or returned an unrecoverable error.", "model": ErrorDetail},
     },
 )
 async def chat(request: Request, body: ChatRequest) -> StreamingResponse | JSONResponse:
-    manager = get_manager(request)
-    worker = manager.get_worker(body.provider, body.model)
-    if worker is None:
+    colony = get_colony(request)
+    drone = colony.get_drone(body.provider, body.model)
+    if drone is None:
         raise HTTPException(
             status_code=404,
-            detail=f"No warm worker configured for provider={body.provider.value} model={body.model}",
+            detail=f"No drone configured for provider={body.provider.value} model={body.model}",
         )
 
-    handle = await worker.submit(body)
+    handle = await drone.submit(body)
     if body.stream:
         return StreamingResponse(
             _stream_handle_events(handle),

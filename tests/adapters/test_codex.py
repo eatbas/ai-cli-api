@@ -1,6 +1,6 @@
-from ai_cli_api.models import ChatMode
-from ai_cli_api.providers.base import ParseState
-from ai_cli_api.providers.codex import CodexAdapter
+from hive_api.models import ChatMode
+from hive_api.providers.base import ParseState
+from hive_api.providers.codex import CodexAdapter
 
 
 def test_codex_new_command_includes_full_auto():

@@ -26,20 +26,20 @@ class ModelDetail(BaseModel):
 
     provider: ProviderName = Field(description="Provider that serves this model.")
     model: str = Field(description="Model identifier used in chat requests.")
-    ready: bool = Field(description="Whether the worker is ready to accept requests.")
-    busy: bool = Field(description="Whether the worker is currently processing a request.")
+    ready: bool = Field(description="Whether the drone is ready to accept requests.")
+    busy: bool = Field(description="Whether the drone is currently processing a request.")
     supports_resume: bool = Field(description="Whether this model supports session resume.")
     chat_request_example: dict[str, Any] = Field(description="Example POST /v1/chat body.")
 
 
-class WorkerInfo(BaseModel):
-    """Runtime status of a warm worker process."""
+class DroneInfo(BaseModel):
+    """Runtime status of a drone process."""
 
-    provider: ProviderName = Field(description="Provider this worker serves.")
-    model: str = Field(description="Model this worker is configured for.")
-    shell_backend: str = Field(description="Path to the shell executable backing this worker.")
-    ready: bool = Field(description="True if the worker shell has started.")
-    busy: bool = Field(description="True if the worker is currently processing a request.")
+    provider: ProviderName = Field(description="Provider this drone serves.")
+    model: str = Field(description="Model this drone is configured for.")
+    shell_backend: str = Field(description="Path to the shell executable backing this drone.")
+    ready: bool = Field(description="True if the drone shell has started.")
+    busy: bool = Field(description="True if the drone is currently processing a request.")
     queue_length: int = Field(description="Number of requests waiting in queue.")
     last_error: str | None = Field(default=None, description="Most recent error message, or null.")
 
@@ -51,9 +51,9 @@ class HealthResponse(BaseModel):
     config_path: str = Field(description="Filesystem path of loaded configuration.")
     shell_path: str | None = Field(description="Resolved shell executable path, or null.")
     bash_version: str | None = Field(default=None, description="Bash version string, or null.")
-    workers_booted: bool = Field(description="True if all configured workers started successfully.")
-    worker_count: int = Field(description="Total number of configured workers.")
-    details: list[str] = Field(default_factory=list, description="Error messages from unhealthy workers.")
+    drones_booted: bool = Field(description="True if all configured drones started successfully.")
+    drone_count: int = Field(description="Total number of configured drones.")
+    details: list[str] = Field(default_factory=list, description="Error messages from unhealthy drones.")
 
 
 class CLIVersionStatus(BaseModel):
@@ -83,7 +83,7 @@ class CLIVersionStatus(BaseModel):
                     "next_check_at": "2026-03-21T16:00:00Z",
                     "auto_update": True,
                     "last_updated": None,
-                    "update_skipped_reason": "workers busy",
+                    "update_skipped_reason": "drones busy",
                 }
             ]
         }

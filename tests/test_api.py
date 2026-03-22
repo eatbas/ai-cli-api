@@ -1,7 +1,7 @@
 import os
 from fastapi.testclient import TestClient
 
-from ai_cli_api.service import create_app
+from hive_api.service import create_app
 
 
 def test_health_and_provider_endpoints(config_path):
@@ -9,20 +9,20 @@ def test_health_and_provider_endpoints(config_path):
     with TestClient(app) as client:
         index = client.get("/")
         assert index.status_code == 200
-        assert "Warm Worker Console" in index.text
+        assert "Hive Console" in index.text
 
         health = client.get("/health")
         assert health.status_code == 200
         payload = health.json()
-        assert payload["worker_count"] == 9
+        assert payload["drone_count"] == 9
 
         providers = client.get("/v1/providers")
         assert providers.status_code == 200
         assert len(providers.json()) == 6
 
-        workers = client.get("/v1/workers")
-        assert workers.status_code == 200
-        assert len(workers.json()) == 9
+        drones = client.get("/v1/drones")
+        assert drones.status_code == 200
+        assert len(drones.json()) == 9
 
 
 def test_chat_json_and_streaming(config_path, tmp_path):
@@ -97,7 +97,7 @@ def test_chat_opencode_json(config_path, tmp_path):
         assert payload["provider_session_ref"]
 
 
-def test_chat_returns_404_for_unknown_worker(config_path, tmp_path):
+def test_chat_returns_404_for_unknown_drone(config_path, tmp_path):
     app = create_app()
     with TestClient(app) as client:
         body = {
@@ -142,19 +142,19 @@ def test_chat_rejects_relative_workspace_path(config_path):
         assert response.status_code == 422
 
 
-def test_workers_endpoint_reflects_worker_state(config_path, tmp_path):
+def test_drones_endpoint_reflects_drone_state(config_path, tmp_path):
     app = create_app()
     with TestClient(app) as client:
-        workers = client.get("/v1/workers").json()
-        providers_seen = {w["provider"] for w in workers}
+        drones = client.get("/v1/drones").json()
+        providers_seen = {w["provider"] for w in drones}
         assert "claude" in providers_seen
         assert "gemini" in providers_seen
         assert "codex" in providers_seen
         assert "kimi" in providers_seen
         assert "copilot" in providers_seen
         assert "opencode" in providers_seen
-        assert all(w["ready"] for w in workers)
-        assert all(not w["busy"] for w in workers)
+        assert all(w["ready"] for w in drones)
+        assert all(not w["busy"] for w in drones)
 
 
 def test_providers_endpoint_shows_capabilities(config_path):

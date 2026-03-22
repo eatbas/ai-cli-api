@@ -1,5 +1,5 @@
 from .handle import JobHandle
-from .manager import WorkerManager
-from .warm_worker import WarmWorker
+from .colony import Colony
+from .drone import Drone
 
-__all__ = ["JobHandle", "WarmWorker", "WorkerManager"]
+__all__ = ["JobHandle", "Drone", "Colony"]

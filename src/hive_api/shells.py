@@ -114,13 +114,13 @@ class BashSession:
                 self._current_run = None
 
     def _wrap_script(self, token: str, script: str) -> str:
-        begin = f"__AI_CLI_API_BEGIN__{token}"
-        end = f"__AI_CLI_API_END__{token}"
+        begin = f"__HIVE_BEGIN__{token}"
+        end = f"__HIVE_END__{token}"
         return (
             f"printf '%s\\n' '{begin}'\n"
-            f"__ai_cli_exit=0\n"
+            f"__hive_exit=0\n"
             f"{script}\n"
-            f"printf '%s:%s\\n' '{end}' \"$__ai_cli_exit\"\n"
+            f"printf '%s:%s\\n' '{end}' \"$__hive_exit\"\n"
         )
 
     async def _reader_loop(self) -> None:
@@ -130,7 +130,7 @@ class BashSession:
             if not raw_line:
                 current = self._current_run
                 if current and not current.future.done():
-                    current.future.set_exception(ShellSessionError("bash worker terminated unexpectedly"))
+                    current.future.set_exception(ShellSessionError("bash drone terminated unexpectedly"))
                 break
 
             line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
@@ -138,8 +138,8 @@ class BashSession:
             if current is None:
                 continue
 
-            begin_marker = f"__AI_CLI_API_BEGIN__{current.token}"
-            end_prefix = f"__AI_CLI_API_END__{current.token}:"
+            begin_marker = f"__HIVE_BEGIN__{current.token}"
+            end_prefix = f"__HIVE_END__{current.token}:"
             if line == begin_marker:
                 current.started = True
                 continue

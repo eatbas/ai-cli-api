@@ -1,15 +1,15 @@
-# AI CLI API
+# Hive API
 
-Local FastAPI wrapper around warm `bash` workers for **Gemini**, **Codex**, **Claude**, **Kimi**, **Copilot**, and **OpenCode**.
+Hive — coordinated AI CLI collective for **Gemini**, **Codex**, **Claude**, **Kimi**, **Copilot**, and **OpenCode**.
 
 ## What it does
 
-- Starts one warm background bash worker per configured `provider + model`
+- Starts one warm background bash drone per configured `provider + model`
 - Accepts API calls over HTTP
-- Runs the matching CLI inside the already-open bash worker
+- Runs the matching CLI inside the already-open bash drone
 - Streams output back over Server-Sent Events or returns JSON
 - Keeps no persistent conversation state in the bridge
-- Periodically checks for CLI updates and can auto-update idle workers
+- Periodically checks for CLI updates and can auto-update idle drones
 
 The caller must send `provider`, `model`, `workspace_path`, and when resuming, the provider-native session reference.
 
@@ -19,10 +19,10 @@ The caller must send `provider`, `model`, `workspace_path`, and when resuming, t
 python -m venv .venv
 . .venv/Scripts/activate
 pip install -e .[dev]
-uvicorn ai_cli_api.main:app --reload
+uvicorn hive_api.main:app --reload
 ```
 
-Default config is loaded from `config.toml`. Override with `AI_CLI_API_CONFIG=/path/to/config.toml`.
+Default config is loaded from `config.toml`. Override with `HIVE_API_CONFIG=/path/to/config.toml`.
 
 Open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) to use the built-in web test console.
 
@@ -41,7 +41,7 @@ Interactive API docs are available at `/docs` (Swagger) and `/redoc` (ReDoc).
 
 ## Config
 
-`config.toml` prewarms workers for the configured provider-model pairs.
+`config.toml` prewarms drones for the configured provider-model pairs.
 
 ```toml
 [server]
@@ -63,7 +63,7 @@ interval_hours = 4
 auto_update = true
 ```
 
-- `models` — Each string becomes a warm worker. The value is passed to the provider CLI `--model` flag.
+- `models` — Each string becomes a drone. The value is passed to the provider CLI `--model` flag.
 - `executable` — Leave empty to auto-detect from PATH, or set an absolute path.
 - `default_options.extra_args` — Allowlisted escape hatch for provider-specific flags.
 - `updater` — Controls automatic CLI version checking and updates.
@@ -73,7 +73,7 @@ auto_update = true
 ### Health & System
 
 #### `GET /health`
-Returns health status, shell availability, and worker boot state.
+Returns health status, shell availability, and drone boot state.
 
 #### `POST /v1/cli-versions/check`
 Triggers a version check for all provider CLIs. Returns current and latest versions for each.
@@ -82,7 +82,7 @@ Triggers a version check for all provider CLIs. Returns current and latest versi
 Returns cached CLI version statuses (current version, latest version, update availability).
 
 #### `POST /v1/cli-versions/{provider}/update`
-Force-updates a single provider CLI. The provider's workers are restarted after the update completes.
+Force-updates a single provider CLI. The provider's drones are restarted after the update completes.
 
 ### Providers & Models
 
@@ -92,8 +92,8 @@ Returns provider capabilities and executable discovery results.
 #### `GET /v1/models`
 Returns all available models across all providers with per-model status and chat examples.
 
-#### `GET /v1/workers`
-Returns the warm worker inventory, status, and queue depth.
+#### `GET /v1/drones`
+Returns the drone inventory, status, and queue depth.
 
 ### Chat
 
@@ -105,7 +105,7 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
 {
   "provider": "claude",
   "model": "sonnet",
-  "workspace_path": "C:\\Github\\ai-cli-api",
+  "workspace_path": "C:\\Github\\hive-api",
   "mode": "new",
   "prompt": "say hello in one word",
   "stream": true
@@ -117,7 +117,7 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
 {
   "provider": "gemini",
   "model": "gemini-3.1-pro-preview",
-  "workspace_path": "C:\\Github\\ai-cli-api",
+  "workspace_path": "C:\\Github\\hive-api",
   "mode": "resume",
   "prompt": "say hi in one word",
   "provider_session_ref": "e3c7d445-d2f3-4e61-931f-62d7182902e6",
@@ -129,7 +129,7 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
 
 | Event               | Description                          |
 | ------------------- | ------------------------------------ |
-| `run_started`       | Worker picked up the job             |
+| `run_started`       | Drone picked up the job              |
 | `provider_session`  | Session ID from the provider CLI     |
 | `output_delta`      | Incremental text chunk               |
 | `completed`         | Final text and exit code             |
@@ -163,7 +163,7 @@ Uses the cheapest available model (Claude Haiku or GPT-5.4-mini) to AI-generate 
 ```json
 {
   "field": "all",
-  "workspace_path": "C:\\Github\\ai-cli-api"
+  "workspace_path": "C:\\Github\\hive-api"
 }
 ```
 
@@ -183,7 +183,7 @@ Features:
 
 ## Adding a new provider
 
-1. Create `src/ai_cli_api/providers/<name>.py` — subclass `ProviderAdapter`
+1. Create `src/hive_api/providers/<name>.py` — subclass `ProviderAdapter`
 2. Add `<NAME>` to the `ProviderName` enum in `models.py`
 3. Register the adapter in `providers/registry.py`
 4. Add a `[providers.<name>]` section to `config.toml`

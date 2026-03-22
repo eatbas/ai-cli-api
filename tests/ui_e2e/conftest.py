@@ -31,13 +31,13 @@ def server(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("ui")
     cfg = make_config(tmp)
 
-    env = {**os.environ, "AI_CLI_API_CONFIG": str(cfg)}
+    env = {**os.environ, "HIVE_API_CONFIG": str(cfg)}
     proc = subprocess.Popen(
         [
             sys.executable,
             "-m",
             "uvicorn",
-            "ai_cli_api.main:app",
+            "hive_api.main:app",
             "--host",
             "127.0.0.1",
             "--port",
@@ -64,5 +64,5 @@ def server(tmp_path_factory):
 @pytest.fixture()
 def console_page(page: Page, server: str) -> Page:
     page.goto(server)
-    page.wait_for_selector(".worker-chip", timeout=10_000)
+    page.wait_for_selector(".drone-chip", timeout=10_000)
     return page

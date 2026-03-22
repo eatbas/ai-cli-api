@@ -1,4 +1,4 @@
-import { getWorkers, getWorkspaceInput } from "/static/request.js";
+import { getDrones, getWorkspaceInput } from "/static/request.js";
 
 const testStoryEl = document.getElementById("test-story");
 const testQAList = document.getElementById("test-qa-list");
@@ -147,11 +147,11 @@ async function generateScenario() {
 
 export function renderTestLabModels() {
   testModelGrid.innerHTML = "";
-  const workers = getWorkers();
+  const drones = getDrones();
   const groups = {};
-  for (const worker of workers) {
-    groups[worker.provider] = groups[worker.provider] || [];
-    groups[worker.provider].push(worker);
+  for (const drone of drones) {
+    groups[drone.provider] = groups[drone.provider] || [];
+    groups[drone.provider].push(drone);
   }
 
   for (const [provider, models] of Object.entries(groups)) {
@@ -185,7 +185,7 @@ export function renderTestLabModels() {
 
   // Populate generate model selector
   generateModelSelect.innerHTML = '<option value="auto">Auto (cheapest)</option>';
-  for (const w of workers) {
+  for (const w of drones) {
     if (w.ready) {
       const opt = document.createElement("option");
       opt.value = `${w.provider}/${w.model}`;

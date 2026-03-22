@@ -1,8 +1,8 @@
 import pytest
 
-from ai_cli_api.models import ChatMode
-from ai_cli_api.providers.base import ParseState
-from ai_cli_api.providers.gemini import GeminiAdapter
+from hive_api.models import ChatMode
+from hive_api.providers.base import ParseState
+from hive_api.providers.gemini import GeminiAdapter
 
 
 def test_gemini_command_omits_model_for_default():

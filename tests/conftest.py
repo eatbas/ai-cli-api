@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ai_cli_api.config import load_config
-from ai_cli_api.models import ProviderName
+from hive_api.config import load_config
+from hive_api.models import ProviderName
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -94,7 +94,7 @@ default_options = {{ extra_args = [] }}
 @pytest.fixture()
 def config_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     path = make_config(tmp_path)
-    monkeypatch.setenv("AI_CLI_API_CONFIG", str(path))
+    monkeypatch.setenv("HIVE_API_CONFIG", str(path))
     return path
 
 

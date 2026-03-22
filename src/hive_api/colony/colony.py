@@ -4,20 +4,20 @@ import asyncio
 import logging
 
 from ..config import AppConfig, ProviderConfig
-from ..models import ModelDetail, ProviderCapability, ProviderName, WorkerInfo
+from ..models import ModelDetail, ProviderCapability, ProviderName, DroneInfo
 from ..providers.registry import build_provider_registry
 from ..shells import detect_bash_path
-from .warm_worker import WarmWorker
+from .drone import Drone
 
-logger = logging.getLogger("ai_cli_api.worker")
+logger = logging.getLogger("hive_api.colony")
 
 
-class WorkerManager:
+class Colony:
     def __init__(self, config: AppConfig):
         self.config = config
         self.shell_path = detect_bash_path(config.shell.path)
         self.registry = build_provider_registry()
-        self.workers: dict[tuple[ProviderName, str], WarmWorker] = {}
+        self.drones: dict[tuple[ProviderName, str], Drone] = {}
         self.session_models: dict[tuple[ProviderName, str], str] = {}
         self.available_providers: dict[ProviderName, bool] = {}
 
@@ -34,7 +34,7 @@ class WorkerManager:
             if not adapter.is_available(provider_config.executable):
                 self.available_providers[provider] = False
                 logger.warning(
-                    "Provider %s: CLI '%s' not found -- skipping worker creation",
+                    "Provider %s: CLI '%s' not found -- skipping drone creation",
                     provider.value,
                     executable,
                 )
@@ -42,14 +42,14 @@ class WorkerManager:
 
             self.available_providers[provider] = True
             logger.info(
-                "Provider %s: CLI '%s' found -- starting %d worker(s)",
+                "Provider %s: CLI '%s' found -- starting %d drone(s)",
                 provider.value,
                 executable,
                 len(provider_config.models),
             )
-            pending: list[tuple[tuple[ProviderName, str], WarmWorker]] = []
+            pending: list[tuple[tuple[ProviderName, str], Drone]] = []
             for model in provider_config.models:
-                worker = WarmWorker(
+                drone = Drone(
                     provider=provider,
                     model=model,
                     adapter=adapter,
@@ -58,16 +58,16 @@ class WorkerManager:
                     default_options=provider_config.default_options,
                     session_models=self.session_models,
                 )
-                pending.append(((provider, model), worker))
+                pending.append(((provider, model), drone))
             await asyncio.gather(*(w.start() for _, w in pending))
             for key, w in pending:
-                self.workers[key] = w
+                self.drones[key] = w
 
     async def stop(self) -> None:
-        await asyncio.gather(*(worker.stop() for worker in self.workers.values()), return_exceptions=True)
+        await asyncio.gather(*(drone.stop() for drone in self.drones.values()), return_exceptions=True)
 
-    def get_worker(self, provider: ProviderName, model: str) -> WarmWorker | None:
-        return self.workers.get((provider, model))
+    def get_drone(self, provider: ProviderName, model: str) -> Drone | None:
+        return self.drones.get((provider, model))
 
     def capabilities(self) -> list[ProviderCapability]:
         capabilities: list[ProviderCapability] = []
@@ -90,14 +90,14 @@ class WorkerManager:
 
     def model_details(self) -> list[ModelDetail]:
         details: list[ModelDetail] = []
-        for (provider, model), worker in self.workers.items():
+        for (provider, model), drone in self.drones.items():
             adapter = self.registry[provider]
             details.append(
                 ModelDetail(
                     provider=provider,
                     model=model,
-                    ready=worker.ready,
-                    busy=worker.busy,
+                    ready=drone.ready,
+                    busy=drone.busy,
                     supports_resume=adapter.supports_resume,
                     chat_request_example={
                         "provider": provider.value,
@@ -111,16 +111,16 @@ class WorkerManager:
             )
         return details
 
-    def worker_info(self) -> list[WorkerInfo]:
-        return [worker.info() for worker in self.workers.values()]
+    def drone_info(self) -> list[DroneInfo]:
+        return [drone.info() for drone in self.drones.values()]
 
-    def workers_for_provider(self, provider: ProviderName) -> list[WarmWorker]:
-        return [w for (p, _), w in self.workers.items() if p == provider]
+    def drones_for_provider(self, provider: ProviderName) -> list[Drone]:
+        return [w for (p, _), w in self.drones.items() if p == provider]
 
     async def restart_provider(self, provider: ProviderName) -> None:
-        workers = self.workers_for_provider(provider)
-        await asyncio.gather(*(w.stop() for w in workers), return_exceptions=True)
-        await asyncio.gather(*(w.start() for w in workers))
+        drones = self.drones_for_provider(provider)
+        await asyncio.gather(*(w.stop() for w in drones), return_exceptions=True)
+        await asyncio.gather(*(w.start() for w in drones))
 
     async def activate_provider(self, provider: ProviderName) -> bool:
         if self.available_providers.get(provider, False):
@@ -136,10 +136,10 @@ class WorkerManager:
 
         executable = adapter.resolve_executable(provider_config.executable)
         self.available_providers[provider] = True
-        logger.info("Provider %s: CLI now available at '%s' -- creating workers", provider.value, executable)
+        logger.info("Provider %s: CLI now available at '%s' -- creating drones", provider.value, executable)
         for model in provider_config.models:
-            if (provider, model) not in self.workers:
-                worker = WarmWorker(
+            if (provider, model) not in self.drones:
+                drone = Drone(
                     provider=provider,
                     model=model,
                     adapter=adapter,
@@ -148,21 +148,21 @@ class WorkerManager:
                     default_options=provider_config.default_options,
                     session_models=self.session_models,
                 )
-                await worker.start()
-                self.workers[(provider, model)] = worker
+                await drone.start()
+                self.drones[(provider, model)] = drone
         return True
 
-    def get_idle_worker(self, provider: ProviderName) -> WarmWorker | None:
-        for worker in self.workers_for_provider(provider):
-            if worker.ready and not worker.busy and worker.queue.qsize() == 0:
-                return worker
+    def get_idle_drone(self, provider: ProviderName) -> Drone | None:
+        for drone in self.drones_for_provider(provider):
+            if drone.ready and not drone.busy and drone.queue.qsize() == 0:
+                return drone
         return None
 
     async def get_bash_version(self) -> str | None:
-        for worker in self.workers.values():
-            if worker.ready and not worker.busy and worker.queue.qsize() == 0:
+        for drone in self.drones.values():
+            if drone.ready and not drone.busy and drone.queue.qsize() == 0:
                 try:
-                    _, output = await worker.run_quick_command("bash --version | head -1\n__ai_cli_exit=0")
+                    _, output = await drone.run_quick_command("bash --version | head -1\n__hive_exit=0")
                     return output.strip() if output.strip() else None
                 except Exception:
                     return None
@@ -170,7 +170,7 @@ class WorkerManager:
 
     def health_details(self) -> list[str]:
         details: list[str] = []
-        for worker in self.workers.values():
-            if worker.last_error:
-                details.append(f"{worker.provider.value}/{worker.model}: {worker.last_error}")
+        for drone in self.drones.values():
+            if drone.last_error:
+                details.append(f"{drone.provider.value}/{drone.model}: {drone.last_error}")
         return details

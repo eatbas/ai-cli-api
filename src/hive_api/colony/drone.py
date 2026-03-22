@@ -3,13 +3,13 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from ..models import ChatRequest, ChatResponse, ProviderName, WorkerInfo
+from ..models import ChatRequest, ChatResponse, ProviderName, DroneInfo
 from ..providers.base import ProviderAdapter
 from ..shells import BashSession, ShellSessionError
 from .handle import JobHandle, _safe_error_message
 
 
-class WarmWorker:
+class Drone:
     def __init__(
         self,
         *,
@@ -74,8 +74,8 @@ class WarmWorker:
             exit_code = await coro
         return exit_code, "\n".join(lines)
 
-    def info(self) -> WorkerInfo:
-        return WorkerInfo(
+    def info(self) -> DroneInfo:
+        return DroneInfo(
             provider=self.provider,
             model=self.model,
             shell_backend=self.shell_backend,

@@ -12,8 +12,8 @@ const eventCountEl = document.getElementById("event-count");
 const healthStatusEl = document.getElementById("health-status");
 const shellPathEl = document.getElementById("shell-path");
 const bashVersionEl = document.getElementById("bash-version");
-const workerCountEl = document.getElementById("worker-count");
-const workerListEl = document.getElementById("worker-list");
+const droneCountEl = document.getElementById("drone-count");
+const droneListEl = document.getElementById("drone-list");
 const requestMetaEl = document.getElementById("request-meta");
 const sendButton = document.getElementById("send-button");
 const refreshButton = document.getElementById("refresh-button");
@@ -21,14 +21,14 @@ const checkUpdatesButton = document.getElementById("check-updates-button");
 const versionGridEl = document.getElementById("version-grid");
 const versionMetaEl = document.getElementById("version-meta");
 
-let workers = [];
+let drones = [];
 let eventCount = 0;
 
 function writeConsole(line = "") { consoleEl.textContent += `${line}\n`; consoleEl.scrollTop = consoleEl.scrollHeight; }
 function resetConsole() { consoleEl.textContent = ""; eventCount = 0; eventCountEl.textContent = "0"; sessionRefEl.textContent = "none"; }
 function setMeta(message, isError = false) { requestMetaEl.textContent = message; requestMetaEl.className = isError ? "meta error" : "meta"; }
 function updateSessionVisibility() { sessionInput.disabled = modeSelect.value !== "resume"; }
-function modelsForProvider(provider) { return workers.filter((w) => w.provider === provider).map((w) => w.model); }
+function modelsForProvider(provider) { return drones.filter((w) => w.provider === provider).map((w) => w.model); }
 
 function renderModelOptions() {
   const current = providerSelect.value;
@@ -41,28 +41,28 @@ function renderModelOptions() {
   }
 }
 
-function renderWorkers() {
-  workerListEl.innerHTML = "";
+function renderDrones() {
+  droneListEl.innerHTML = "";
   const groups = {};
-  for (const w of workers) {
+  for (const w of drones) {
     groups[w.provider] = groups[w.provider] || [];
     groups[w.provider].push(w);
   }
   for (const [provider, models] of Object.entries(groups)) {
     const group = document.createElement("div");
-    group.className = "worker-group";
-    group.innerHTML = `<div class="worker-group-header">${provider} <span class="worker-group-count">(${models.length})</span></div>`;
+    group.className = "drone-group";
+    group.innerHTML = `<div class="drone-group-header">${provider} <span class="drone-group-count">(${models.length})</span></div>`;
     const items = document.createElement("div");
-    items.className = "worker-group-items";
+    items.className = "drone-group-items";
     for (const w of models) {
       const chip = document.createElement("div");
-      chip.className = "worker-chip";
+      chip.className = "drone-chip";
       const statusClass = w.ready ? "ok" : "error";
-      chip.innerHTML = `<strong>${w.model}</strong><span class="worker-status ${statusClass}">${w.ready ? "ready" : "down"} · ${w.busy ? "busy" : "idle"} · q=${w.queue_length}</span>`;
+      chip.innerHTML = `<strong>${w.model}</strong><span class="drone-status ${statusClass}">${w.ready ? "ready" : "down"} · ${w.busy ? "busy" : "idle"} · q=${w.queue_length}</span>`;
       items.appendChild(chip);
     }
     group.appendChild(items);
-    workerListEl.appendChild(group);
+    droneListEl.appendChild(group);
   }
 }
 
@@ -149,15 +149,15 @@ async function updateProvider(provider) {
 }
 
 export async function refreshState() {
-  const [healthResponse, workersResponse, providersResponse] = await Promise.all([fetch("/health"), fetch("/v1/workers"), fetch("/v1/providers")]);
+  const [healthResponse, dronesResponse, providersResponse] = await Promise.all([fetch("/health"), fetch("/v1/drones"), fetch("/v1/providers")]);
   const health = await healthResponse.json();
-  workers = await workersResponse.json();
+  drones = await dronesResponse.json();
   const providers = await providersResponse.json();
 
   healthStatusEl.textContent = health.status;
   shellPathEl.textContent = health.shell_path || "not detected";
   bashVersionEl.textContent = health.bash_version || "not detected";
-  workerCountEl.textContent = String(health.worker_count);
+  droneCountEl.textContent = String(health.drone_count);
 
   // Set workspace_path default to config file's parent directory (project root).
   if (!workspaceInput.value && health.config_path) {
@@ -178,7 +178,7 @@ export async function refreshState() {
   if (savedProvider) providerSelect.value = savedProvider;
   renderModelOptions();
   if (savedModel) modelSelect.value = savedModel;
-  renderWorkers();
+  renderDrones();
   updateSessionVisibility();
 
   try {
@@ -188,7 +188,7 @@ export async function refreshState() {
   } catch (_) { }
 }
 
-export function getWorkers() { return workers; }
+export function getDrones() { return drones; }
 export function getWorkspaceInput() { return workspaceInput; }
 
 form.addEventListener("submit", async (event) => {

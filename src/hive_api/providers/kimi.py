@@ -53,10 +53,10 @@ class KimiAdapter(ProviderAdapter):
             f"export PYTHONIOENCODING=utf-8\n"
             f"if ! cd -- {workspace}; then\n"
             f"  echo 'Failed to enter workspace: {workspace_path}'\n"
-            f"  __ai_cli_exit=97\n"
+            f"  __hive_exit=97\n"
             f"else\n"
             f"  {shell_command} < /dev/null\n"
-            f"  __ai_cli_exit=$?\n"
+            f"  __hive_exit=$?\n"
             f"fi"
         )
 

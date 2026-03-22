@@ -18,16 +18,16 @@ from .routes import (
     updates_router,
 )
 from .updater import CLIUpdater
-from .worker import WorkerManager
+from .colony import Colony
 
-logger = logging.getLogger("ai_cli_api.service")
+logger = logging.getLogger("hive_api.service")
 
 UI_STATIC_DIR = Path(__file__).with_name("ui") / "static"
 
 API_DESCRIPTION = """\
-Warm-worker API wrapper for AI coding CLIs (Gemini, Codex, Claude, Kimi, Copilot, OpenCode).
+Hive API — a coordinated collective of AI coding CLIs (Gemini, Codex, Claude, Kimi, Copilot, OpenCode).
 
-The API maintains persistent warm workers for configured provider/model pairs,
+The API maintains persistent drones for configured provider/model pairs,
 enabling low-latency prompt execution without cold-start overhead.
 """
 
@@ -35,7 +35,7 @@ OPENAPI_TAGS = [
     {"name": "Health", "description": "System health and readiness checks."},
     {"name": "Providers", "description": "Query registered AI CLI providers and capabilities."},
     {"name": "Models", "description": "Discover configured models across providers."},
-    {"name": "Workers", "description": "Inspect runtime state of warm worker processes."},
+    {"name": "Drones", "description": "Inspect runtime state of drone processes."},
     {"name": "Chat", "description": "Submit prompts to AI providers with JSON or SSE responses."},
     {"name": "Updates", "description": "CLI version checking and auto-update management."},
     {"name": "Test Lab", "description": "Multi-model harness for NEW/RESUME verification workflows."},
@@ -45,20 +45,20 @@ OPENAPI_TAGS = [
 
 def create_app() -> FastAPI:
     config = load_config()
-    manager = WorkerManager(config)
-    updater = CLIUpdater(manager=manager, config=config.updater)
+    colony = Colony(config)
+    updater = CLIUpdater(manager=colony, config=config.updater)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        await manager.start()
+        await colony.start()
 
-        available = [p.value for p, ok in manager.available_providers.items() if ok]
-        unavailable = [p.value for p, ok in manager.available_providers.items() if not ok]
+        available = [p.value for p, ok in colony.available_providers.items() if ok]
+        unavailable = [p.value for p, ok in colony.available_providers.items() if not ok]
         logger.info(
-            "CLI availability: available=%s, unavailable=%s, workers=%d",
+            "CLI availability: available=%s, unavailable=%s, drones=%d",
             available or "none",
             unavailable or "none",
-            len(manager.workers),
+            len(colony.drones),
         )
 
         updater.start()
@@ -66,12 +66,12 @@ def create_app() -> FastAPI:
             yield
         finally:
             await updater.stop()
-            await manager.stop()
+            await colony.stop()
 
     app = FastAPI(
-        title="AI CLI API",
+        title="Hive",
         version="0.1.0",
-        summary="Warm-worker API wrapper for AI coding CLIs",
+        summary="Hive — coordinated AI CLI collective",
         description=API_DESCRIPTION,
         openapi_tags=OPENAPI_TAGS,
         lifespan=lifespan,
@@ -84,22 +84,22 @@ def create_app() -> FastAPI:
     )
 
     app.state.config = config
-    app.state.worker_manager = manager
+    app.state.colony = colony
     app.state.updater = updater
 
     app.mount("/static", StaticFiles(directory=UI_STATIC_DIR), name="static")
 
     @app.get("/health", tags=["Health"], summary="System health check")
     async def health():
-        details = manager.health_details()
-        bash_version = await manager.get_bash_version()
+        details = colony.health_details()
+        bash_version = await colony.get_bash_version()
         return {
             "status": "ok" if not details else "degraded",
             "config_path": str(config.config_path),
-            "shell_path": manager.shell_path,
+            "shell_path": colony.shell_path,
             "bash_version": bash_version,
-            "workers_booted": all(worker.ready for worker in manager.workers.values()) if manager.workers else False,
-            "worker_count": len(manager.workers),
+            "drones_booted": all(drone.ready for drone in colony.drones.values()) if colony.drones else False,
+            "drone_count": len(colony.drones),
             "details": details,
         }
 

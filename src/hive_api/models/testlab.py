@@ -69,7 +69,7 @@ class TestGenerateRequest(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "examples": [{"field": "all", "workspace_path": "C:\\Github\\ai-cli-api"}]
+            "examples": [{"field": "all", "workspace_path": "C:\\Github\\hive-api"}]
         }
     )
 

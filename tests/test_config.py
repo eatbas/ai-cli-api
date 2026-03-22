@@ -1,5 +1,5 @@
-from ai_cli_api.config import load_config
-from ai_cli_api.models import ProviderName
+from hive_api.config import load_config
+from hive_api.models import ProviderName
 
 
 def test_load_config_expands_provider_models(config_path):

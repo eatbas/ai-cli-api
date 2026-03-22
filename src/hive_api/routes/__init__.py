@@ -1,4 +1,4 @@
-from ._deps import get_manager, get_updater
+from ._deps import get_colony, get_updater
 from .chat import router as chat_router
 from .console import router as console_router
 from .providers import router as providers_router
@@ -8,7 +8,7 @@ from .updates import router as updates_router
 __all__ = [
     "chat_router",
     "console_router",
-    "get_manager",
+    "get_colony",
     "get_updater",
     "providers_router",
     "updates_router",
