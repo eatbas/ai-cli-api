@@ -1,5 +1,5 @@
-from .chat import ChatRequest, ChatResponse
-from .enums import ChatMode, ProviderName
+from .chat import ChatRequest, ChatResponse, StopResponse
+from .enums import ChatMode, JobStatus, ProviderName
 from .provider import (
     CLIVersionStatus,
     ErrorDetail,
@@ -8,7 +8,7 @@ from .provider import (
     ProviderCapability,
     DroneInfo,
 )
-from .sse import SSECompleted, SSEFailed, SSEOutputDelta, SSEProviderSession, SSERunStarted
+from .sse import SSECompleted, SSEFailed, SSEOutputDelta, SSEProviderSession, SSERunStarted, SSEStopped
 from .testlab import (
     TestGenerateRequest,
     TestGenerateResponse,
@@ -22,8 +22,10 @@ from .testlab import (
 __all__ = [
     "ProviderName",
     "ChatMode",
+    "JobStatus",
     "ChatRequest",
     "ChatResponse",
+    "StopResponse",
     "TestVerifyItem",
     "TestVerifyRequest",
     "TestVerifyResultItem",
@@ -42,4 +44,5 @@ __all__ = [
     "SSEOutputDelta",
     "SSECompleted",
     "SSEFailed",
+    "SSEStopped",
 ]

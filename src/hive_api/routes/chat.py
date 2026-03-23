@@ -6,11 +6,13 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from ..models import ChatRequest, ChatResponse, ErrorDetail
+from ..models import ChatRequest, ChatResponse, ErrorDetail, StopResponse
 from ..colony import JobHandle
 from ._deps import get_colony
 
 router = APIRouter()
+
+_TERMINAL_EVENTS = {"completed", "failed", "stopped"}
 
 
 async def _stream_handle_events(handle: JobHandle) -> AsyncIterator[str]:
@@ -19,7 +21,7 @@ async def _stream_handle_events(handle: JobHandle) -> AsyncIterator[str]:
         payload = dict(event)
         event_name = payload.pop("type")
         yield f"event: {event_name}\ndata: {json.dumps(payload)}\n\n"
-        if event_name in {"completed", "failed"}:
+        if event_name in _TERMINAL_EVENTS:
             break
 
 
@@ -53,6 +55,8 @@ async def chat(request: Request, body: ChatRequest) -> StreamingResponse | JSONR
         )
 
     handle = await drone.submit(body)
+    colony.register_job(handle)
+
     if body.stream:
         return StreamingResponse(
             _stream_handle_events(handle),
@@ -65,3 +69,25 @@ async def chat(request: Request, body: ChatRequest) -> StreamingResponse | JSONR
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return JSONResponse(content=result.model_dump())
+
+
+@router.post(
+    "/v1/chat/{job_id}/stop",
+    tags=["Chat"],
+    summary="Stop a running or queued job",
+    response_model=StopResponse,
+    responses={
+        404: {"description": "Job ID not found.", "model": ErrorDetail},
+    },
+)
+async def stop_job(request: Request, job_id: str) -> StopResponse:
+    colony = get_colony(request)
+    handle = colony.stop_job(job_id)
+    if handle is None:
+        raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+    return StopResponse(
+        job_id=job_id,
+        status=handle.status,
+        provider=handle.provider,
+        model=handle.model,
+    )

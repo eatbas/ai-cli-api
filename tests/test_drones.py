@@ -218,3 +218,59 @@ async def test_capabilities_include_available_field(loaded_config):
             assert cap.available is True
     finally:
         await manager.stop()
+
+
+@pytest.mark.asyncio()
+async def test_cancel_queued_job(loaded_config):
+    """Cancel a queued job before it runs."""
+    from hive_api.shells import JobCancelledError
+
+    manager = Colony(loaded_config)
+    await manager.start()
+    try:
+        drone = manager.get_drone(ProviderName.CLAUDE, "sonnet")
+        assert drone is not None
+
+        # Submit two jobs — second one will be queued while first runs
+        h1 = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="first"))
+        h2 = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet", prompt="second"))
+        manager.register_job(h1)
+        manager.register_job(h2)
+
+        # Cancel the second (queued) job
+        result = manager.stop_job(h2.job_id)
+        assert result is not None
+        assert result.status.value == "stopped"
+
+        # First should complete normally
+        r1 = await h1.result_future
+        assert "first" in r1.final_text
+
+        # Second should raise JobCancelledError
+        with pytest.raises(JobCancelledError):
+            await h2.result_future
+    finally:
+        await manager.stop()
+
+
+@pytest.mark.asyncio()
+async def test_job_status_transitions(loaded_config):
+    """Verify job status goes QUEUED -> RUNNING -> COMPLETED."""
+    from hive_api.models.enums import JobStatus
+
+    manager = Colony(loaded_config)
+    await manager.start()
+    try:
+        drone = manager.get_drone(ProviderName.CLAUDE, "sonnet")
+        assert drone is not None
+
+        handle = await drone.submit(_new_request(ProviderName.CLAUDE, "sonnet"))
+        manager.register_job(handle)
+        assert handle.status == JobStatus.QUEUED
+
+        result = await handle.result_future
+        assert result.exit_code == 0
+        assert handle.status == JobStatus.COMPLETED
+        assert handle.job_id
+    finally:
+        await manager.stop()

@@ -19,3 +19,13 @@ class ChatMode(StrEnum):
 
     NEW = "new"
     RESUME = "resume"
+
+
+class JobStatus(StrEnum):
+    """Lifecycle state of a submitted job."""
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    STOPPED = "stopped"

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
 from ..models import ChatResponse
+from ..models.enums import JobStatus, ProviderName
 
 
 def _safe_error_message(exc: BaseException) -> str:
@@ -25,6 +27,11 @@ class JobHandle:
         default_factory=lambda: asyncio.Queue(maxsize=_MAX_EVENT_QUEUE_SIZE),
     )
     result_future: asyncio.Future[ChatResponse] | None = None
+    job_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    cancelled: asyncio.Event = field(default_factory=asyncio.Event)
+    status: JobStatus = JobStatus.QUEUED
+    provider: ProviderName | None = None
+    model: str | None = None
 
     async def publish(self, event: dict[str, Any]) -> None:
         await self.events.put(event)

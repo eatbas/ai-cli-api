@@ -2,6 +2,8 @@ import os
 import sys
 from pathlib import Path
 
+import time
+
 provider = sys.argv[1]
 args = sys.argv[2:]
 
@@ -103,6 +105,9 @@ elif provider == "opencode":
 else:
     emit('{"error":"unknown provider"}')
     sys.exit(1)
+
+if "slow" in prompt:
+    time.sleep(5)
 
 if "fail" in prompt:
     sys.exit(3)

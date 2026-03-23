@@ -17,6 +17,12 @@ class ShellSessionError(RuntimeError):
     pass
 
 
+class JobCancelledError(RuntimeError):
+    """Raised when a job is cancelled by the user."""
+
+    pass
+
+
 class GitBashNotFoundError(RuntimeError):
     """Raised on Windows when Git Bash cannot be located."""
 

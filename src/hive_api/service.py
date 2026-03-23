@@ -32,6 +32,7 @@ Hive API — a coordinated collective of AI coding CLIs (Gemini, Codex, Claude, 
 
 The API maintains persistent drones for configured provider/model pairs,
 enabling low-latency prompt execution without cold-start overhead.
+Running jobs can be stopped via `POST /v1/chat/{job_id}/stop`.
 """
 
 OPENAPI_TAGS = [

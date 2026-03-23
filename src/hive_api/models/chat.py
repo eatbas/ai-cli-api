@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .enums import ChatMode, ProviderName
+from .enums import ChatMode, JobStatus, ProviderName
 
 
 class ChatRequest(BaseModel):
@@ -93,6 +93,7 @@ class ChatResponse(BaseModel):
     final_text: str = Field(description="Complete accumulated output text.")
     exit_code: int = Field(description="CLI process exit code. 0 indicates success.")
     warnings: list[str] = Field(default_factory=list, description="Non-fatal warnings.")
+    job_id: str | None = Field(default=None, description="Job ID for tracking and cancellation.")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -104,7 +105,17 @@ class ChatResponse(BaseModel):
                     "final_text": "The main entry point is in main.py.",
                     "exit_code": 0,
                     "warnings": [],
+                    "job_id": "a1b2c3d4e5f67890abcdef1234567890",
                 }
             ]
         }
     )
+
+
+class StopResponse(BaseModel):
+    """Response returned when a job stop is requested."""
+
+    job_id: str = Field(description="ID of the job.")
+    status: JobStatus = Field(description="Resulting job status after the stop request.")
+    provider: ProviderName | None = Field(default=None, description="Provider of the job, if known.")
+    model: str | None = Field(default=None, description="Model of the job, if known.")

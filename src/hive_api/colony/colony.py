@@ -5,12 +5,16 @@ import logging
 
 from ..config import AppConfig, ProviderConfig
 from ..models import ModelDetail, ProviderCapability, ProviderName, DroneInfo
+from ..models.enums import JobStatus
 from ..providers.base import set_bash_path
 from ..providers.registry import build_provider_registry
-from ..shells import detect_bash_path
+from ..shells import JobCancelledError, detect_bash_path
 from .drone import Drone
+from .handle import JobHandle
 
 logger = logging.getLogger("hive_api.colony")
+
+_MAX_COMPLETED_JOBS = 1000
 
 
 class Colony:
@@ -23,6 +27,7 @@ class Colony:
         self.drones: dict[tuple[ProviderName, str], Drone] = {}
         self.session_models: dict[tuple[ProviderName, str], str] = {}
         self.available_providers: dict[ProviderName, bool] = {}
+        self._jobs: dict[str, JobHandle] = {}
 
     async def start(self) -> None:
         for provider, provider_config in self.config.providers.items():
@@ -72,6 +77,65 @@ class Colony:
 
     def get_drone(self, provider: ProviderName, model: str) -> Drone | None:
         return self.drones.get((provider, model))
+
+    # ------------------------------------------------------------------
+    # Job registry
+    # ------------------------------------------------------------------
+
+    def register_job(self, handle: JobHandle) -> None:
+        """Store a job handle so it can be looked up for cancellation."""
+        self._jobs[handle.job_id] = handle
+        self._evict_old_jobs()
+
+    def get_job(self, job_id: str) -> JobHandle | None:
+        return self._jobs.get(job_id)
+
+    def stop_job(self, job_id: str) -> JobHandle | None:
+        """Cancel a running or queued job. Returns the handle, or None if not found."""
+        handle = self._jobs.get(job_id)
+        if handle is None:
+            return None
+
+        terminal = {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.STOPPED}
+        if handle.status in terminal:
+            return handle  # Idempotent
+
+        handle.cancelled.set()
+
+        if handle.status == JobStatus.RUNNING:
+            drone = self._find_drone_for_job(handle)
+            if drone is not None:
+                asyncio.create_task(drone.shell.interrupt())
+            handle.status = JobStatus.STOPPED
+
+        elif handle.status == JobStatus.QUEUED:
+            handle.status = JobStatus.STOPPED
+            if handle.result_future and not handle.result_future.done():
+                handle.result_future.set_exception(
+                    JobCancelledError(f"Job {job_id} cancelled while queued")
+                )
+
+        return handle
+
+    def _find_drone_for_job(self, handle: JobHandle) -> Drone | None:
+        """Find the drone currently executing the given job."""
+        for drone in self.drones.values():
+            if drone._current_handle is handle:
+                return drone
+        return None
+
+    def _evict_old_jobs(self) -> None:
+        """Remove oldest terminal jobs when the registry exceeds the limit."""
+        terminal = {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.STOPPED}
+        terminal_ids = [jid for jid, h in self._jobs.items() if h.status in terminal]
+        excess = len(terminal_ids) - _MAX_COMPLETED_JOBS
+        if excess > 0:
+            for jid in terminal_ids[:excess]:
+                del self._jobs[jid]
+
+    # ------------------------------------------------------------------
+    # Provider capabilities
+    # ------------------------------------------------------------------
 
     def capabilities(self) -> list[ProviderCapability]:
         capabilities: list[ProviderCapability] = []

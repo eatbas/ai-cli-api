@@ -44,3 +44,11 @@ class SSEFailed(BaseModel):
     exit_code: int = Field(description="CLI exit code (non-zero).")
     warnings: list[str] = Field(default_factory=list, description="Non-fatal warnings.")
     error: str = Field(description="Failure message.")
+
+
+class SSEStopped(BaseModel):
+    """SSE event emitted when a job is cancelled by the user."""
+
+    provider: ProviderName = Field(description="Provider that was handling the request.")
+    model: str = Field(description="Model that was being used.")
+    job_id: str = Field(description="ID of the cancelled job.")

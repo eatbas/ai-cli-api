@@ -132,13 +132,23 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
 
 **SSE events** (when `stream: true`):
 
-| Event               | Description                          |
-| ------------------- | ------------------------------------ |
-| `run_started`       | Drone picked up the job              |
-| `provider_session`  | Session ID from the provider CLI     |
-| `output_delta`      | Incremental text chunk               |
-| `completed`         | Final text and exit code             |
-| `failed`            | Error message and exit code          |
+| Event               | Description                            |
+| ------------------- | -------------------------------------- |
+| `run_started`       | Drone picked up the job (includes `job_id`) |
+| `provider_session`  | Session ID from the provider CLI       |
+| `output_delta`      | Incremental text chunk                 |
+| `completed`         | Final text and exit code               |
+| `failed`            | Error message and exit code            |
+| `stopped`           | Job was cancelled by the user          |
+
+#### `POST /v1/chat/{job_id}/stop`
+Stops a running or queued job. The `job_id` is returned in the `run_started` SSE event or in the JSON response.
+
+- If the job is **running**, sends an interrupt signal (Ctrl-C) to the CLI process.
+- If the job is **queued**, removes it before execution begins.
+- If the job already **completed** or **failed**, returns the terminal status (idempotent).
+
+Returns `404` if the job ID is not found.
 
 ### Test Lab
 

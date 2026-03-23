@@ -4,8 +4,9 @@ import asyncio
 from typing import Any
 
 from ..models import ChatRequest, ChatResponse, ProviderName, DroneInfo
+from ..models.enums import JobStatus
 from ..providers.base import ProviderAdapter
-from ..shells import BashSession, ShellSessionError
+from ..shells import BashSession, JobCancelledError, ShellSessionError
 from .handle import JobHandle, _safe_error_message
 
 
@@ -36,6 +37,7 @@ class Drone:
         self.ready = False
         self.last_error: str | None = None
         self._runner_task: asyncio.Task[None] | None = None
+        self._current_handle: JobHandle | None = None
 
     async def start(self) -> None:
         try:
@@ -59,7 +61,11 @@ class Drone:
 
     async def submit(self, request: ChatRequest) -> JobHandle:
         loop = asyncio.get_running_loop()
-        handle = JobHandle(result_future=loop.create_future())
+        handle = JobHandle(
+            result_future=loop.create_future(),
+            provider=request.provider,
+            model=request.model,
+        )
         await self.queue.put((request, handle))
         return handle
 
@@ -92,16 +98,44 @@ class Drone:
             request, handle = await self.queue.get()
             self.busy = True
             try:
+                # Skip jobs cancelled while queued
+                if handle.cancelled.is_set():
+                    handle.status = JobStatus.STOPPED
+                    await handle.publish(
+                        {
+                            "type": "stopped",
+                            "job_id": handle.job_id,
+                            "provider": self.provider.value,
+                            "model": self.model,
+                        }
+                    )
+                    if handle.result_future and not handle.result_future.done():
+                        handle.result_future.set_exception(
+                            JobCancelledError(f"Job {handle.job_id} cancelled while queued")
+                        )
+                    continue
+
+                handle.status = JobStatus.RUNNING
+                self._current_handle = handle
+
                 if not self.ready or self.shell.process is None or self.shell.process.returncode is not None:
                     await self.shell.start()
                     self.ready = True
                     self.last_error = None
                 response = await self._execute_request(request, handle)
+                handle.status = JobStatus.COMPLETED
                 if handle.result_future and not handle.result_future.done():
                     handle.result_future.set_result(response)
+            except JobCancelledError:
+                handle.status = JobStatus.STOPPED
+                if handle.result_future and not handle.result_future.done():
+                    handle.result_future.set_exception(
+                        JobCancelledError(f"Job {handle.job_id} was stopped")
+                    )
             except Exception as exc:
                 error_msg = _safe_error_message(exc)
                 self.last_error = error_msg
+                handle.status = JobStatus.FAILED
 
                 shell_alive = self.shell.process is not None and self.shell.process.returncode is None
                 if not shell_alive:
@@ -118,6 +152,7 @@ class Drone:
                 if handle.result_future and not handle.result_future.done():
                     handle.result_future.set_exception(exc)
             finally:
+                self._current_handle = None
                 self.busy = False
                 self.queue.task_done()
 
@@ -146,6 +181,7 @@ class Drone:
                 "type": "run_started",
                 "provider": self.provider.value,
                 "model": request.model,
+                "job_id": handle.job_id,
             }
         )
         if parse_state.session_ref:
@@ -173,6 +209,18 @@ class Drone:
                 f"{self.provider.value} CLI timed out after {self.cli_timeout:.0f}s"
             )
 
+        # Check if the job was cancelled during execution
+        if handle.cancelled.is_set():
+            await handle.publish(
+                {
+                    "type": "stopped",
+                    "job_id": handle.job_id,
+                    "provider": self.provider.value,
+                    "model": self.model,
+                }
+            )
+            raise JobCancelledError(f"Job {handle.job_id} was stopped")
+
         final_text = "\n".join(parse_state.output_chunks).strip()
         response = ChatResponse(
             provider=self.provider,
@@ -181,6 +229,7 @@ class Drone:
             final_text=final_text,
             exit_code=exit_code,
             warnings=parse_state.warnings,
+            job_id=handle.job_id,
         )
 
         if parse_state.error_message or exit_code != 0:
@@ -210,6 +259,7 @@ class Drone:
                 "final_text": final_text,
                 "exit_code": exit_code,
                 "warnings": parse_state.warnings,
+                "job_id": handle.job_id,
             }
         )
         return response

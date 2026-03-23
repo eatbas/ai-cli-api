@@ -247,3 +247,70 @@ def test_no_persistent_state_files_created(config_path, tmp_path):
 
         for ext in ("*.sqlite", "*.db", "*.json"):
             assert not list(tmp_path.rglob(ext)), f"Found unexpected {ext} files"
+
+
+def test_stop_returns_404_for_unknown_job(config_path):
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.post("/v1/chat/nonexistent-id/stop")
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"]
+
+
+def test_stop_completed_job_is_idempotent(config_path, tmp_path):
+    app = create_app()
+    with TestClient(app) as client:
+        body = {
+            "provider": "claude",
+            "model": "sonnet",
+            "workspace_path": str(tmp_path.resolve()),
+            "mode": "new",
+            "prompt": "hello",
+            "stream": False,
+        }
+        response = client.post("/v1/chat", json=body)
+        assert response.status_code == 200
+        job_id = response.json()["job_id"]
+        assert job_id
+
+        stop_response = client.post(f"/v1/chat/{job_id}/stop")
+        assert stop_response.status_code == 200
+        payload = stop_response.json()
+        assert payload["job_id"] == job_id
+        assert payload["status"] in ("completed", "failed", "stopped")
+
+
+def test_chat_response_includes_job_id(config_path, tmp_path):
+    app = create_app()
+    with TestClient(app) as client:
+        body = {
+            "provider": "codex",
+            "model": "codex-5.3",
+            "workspace_path": str(tmp_path.resolve()),
+            "mode": "new",
+            "prompt": "hello",
+            "stream": False,
+        }
+        response = client.post("/v1/chat", json=body)
+        assert response.status_code == 200
+        payload = response.json()
+        assert "job_id" in payload
+        assert payload["job_id"]
+
+
+def test_streaming_includes_job_id_in_run_started(config_path, tmp_path):
+    app = create_app()
+    with TestClient(app) as client:
+        body = {
+            "provider": "claude",
+            "model": "sonnet",
+            "workspace_path": str(tmp_path.resolve()),
+            "mode": "new",
+            "prompt": "hello",
+            "stream": True,
+        }
+        with client.stream("POST", "/v1/chat", json=body) as stream_response:
+            assert stream_response.status_code == 200
+            text = "".join(stream_response.iter_text())
+        assert "event: run_started" in text
+        assert "job_id" in text
