@@ -30,7 +30,7 @@ class OpenCodeAdapter(ProviderAdapter):
         model: str,
         provider_options: dict[str, Any],
     ) -> CommandSpec:
-        argv = [executable, "run", "--format", "json"]
+        argv = [executable, "run", "--format", "json", "--thinking"]
         self._apply_model_override(argv, self._resolve_model(model))
         argv.extend(self._extra_args(provider_options))
         argv.append(prompt)
@@ -45,7 +45,7 @@ class OpenCodeAdapter(ProviderAdapter):
         session_ref: str,
         provider_options: dict[str, Any],
     ) -> CommandSpec:
-        argv = [executable, "run", "--format", "json", "--session", session_ref]
+        argv = [executable, "run", "--format", "json", "--thinking", "--session", session_ref]
         self._apply_model_override(argv, self._resolve_model(model))
         argv.extend(self._extra_args(provider_options))
         argv.append(prompt)

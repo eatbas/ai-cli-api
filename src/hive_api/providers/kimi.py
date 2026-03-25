@@ -19,6 +19,8 @@ class KimiAdapter(ProviderAdapter):
         session_ref = self.new_session_ref()
         argv = [
             executable,
+            "--yolo",
+            "--thinking",
             "--session",
             session_ref,
             "--print",
@@ -34,6 +36,8 @@ class KimiAdapter(ProviderAdapter):
     def build_resume_command(self, *, executable: str, prompt: str, model: str, session_ref: str, provider_options: dict) -> CommandSpec:
         argv = [
             executable,
+            "--yolo",
+            "--thinking",
             "--session",
             session_ref,
             "--print",
