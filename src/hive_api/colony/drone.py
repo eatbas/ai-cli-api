@@ -195,6 +195,7 @@ class Drone:
 
         script = self.adapter.make_shell_script(request.workspace_path, command)
         timeout = self.cli_timeout if self.cli_timeout > 0 else None
+        watcher = asyncio.create_task(self._cancel_watcher(handle))
         try:
             exit_code = await asyncio.wait_for(
                 self.shell.run_script(script, on_line),
@@ -210,6 +211,17 @@ class Drone:
             raise ShellSessionError(
                 f"{self.provider.value} CLI timed out after {self.cli_timeout:.0f}s"
             )
+        except ShellSessionError as exc:
+            if handle.cancelled.is_set():
+                raise JobCancelledError(f"Job {handle.job_id} was stopped") from exc
+            raise
+        finally:
+            if not watcher.done():
+                watcher.cancel()
+            try:
+                await watcher
+            except (asyncio.CancelledError, Exception):
+                pass
 
         # Check if the job was cancelled during execution
         if handle.cancelled.is_set():
@@ -265,3 +277,20 @@ class Drone:
             }
         )
         return response
+
+    async def _cancel_watcher(self, handle: JobHandle) -> None:
+        """Kill the running CLI as soon as the job's cancelled flag is set.
+
+        Runs as a background task alongside :meth:`_execute_request`.  When the
+        user presses Stop, :meth:`Colony.stop_job` sets ``handle.cancelled``;
+        this watcher notices and interrupts the shell, killing the entire CLI
+        process tree immediately.  The shell is restarted so the drone is idle
+        and ready for the next job.
+        """
+        await handle.cancelled.wait()
+        await self.shell.interrupt()
+        try:
+            await self.shell.start()
+            self.ready = True
+        except Exception:
+            self.ready = False

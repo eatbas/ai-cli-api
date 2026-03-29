@@ -161,7 +161,7 @@ class Colony:
     def get_job(self, job_id: str) -> JobHandle | None:
         return self._jobs.get(job_id)
 
-    def stop_job(self, job_id: str) -> JobHandle | None:
+    async def stop_job(self, job_id: str) -> JobHandle | None:
         """Cancel a running or queued job. Returns the handle, or None if not found."""
         handle = self._jobs.get(job_id)
         if handle is None:
@@ -175,8 +175,15 @@ class Colony:
 
         if handle.status == JobStatus.RUNNING:
             drone = self._find_drone_for_job(handle)
+            if handle.result_future and not handle.result_future.done():
+                handle.result_future.set_exception(
+                    JobCancelledError(f"Job {job_id} was stopped")
+                )
             if drone is not None:
-                asyncio.create_task(drone.shell.interrupt())
+                try:
+                    await drone.shell.interrupt()
+                except Exception as exc:
+                    logger.warning("Failed to interrupt job %s cleanly: %s", job_id, exc)
             handle.status = JobStatus.STOPPED
             handle.publish_nowait(stopped_event(handle))
 

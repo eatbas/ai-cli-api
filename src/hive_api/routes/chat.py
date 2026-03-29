@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ..models import ChatRequest, ChatResponse, ErrorDetail, StopResponse
+from ..models.enums import JobStatus
 from ..colony import JobHandle
 from ._deps import get_colony, get_ready_colony
 
@@ -16,13 +17,21 @@ _TERMINAL_EVENTS = {"completed", "failed", "stopped"}
 
 
 async def _stream_handle_events(handle: JobHandle) -> AsyncIterator[str]:
-    while True:
-        event = await handle.events.get()
-        payload = dict(event)
-        event_name = payload.pop("type")
-        yield f"event: {event_name}\ndata: {json.dumps(payload)}\n\n"
-        if event_name in _TERMINAL_EVENTS:
-            break
+    _JOB_TERMINAL = {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.STOPPED}
+    try:
+        while True:
+            event = await handle.events.get()
+            payload = dict(event)
+            event_name = payload.pop("type")
+            yield f"event: {event_name}\ndata: {json.dumps(payload)}\n\n"
+            if event_name in _TERMINAL_EVENTS:
+                break
+    finally:
+        # When the SSE client disconnects (e.g. ea-code aborts the pipeline),
+        # the async generator is closed.  If the job is still running, set the
+        # cancelled flag so the drone's cancel watcher kills the CLI.
+        if handle.status not in _JOB_TERMINAL:
+            handle.cancelled.set()
 
 
 @router.post(
@@ -82,7 +91,7 @@ async def chat(request: Request, body: ChatRequest) -> StreamingResponse | JSONR
 )
 async def stop_job(request: Request, job_id: str) -> StopResponse:
     colony = get_colony(request)
-    handle = colony.stop_job(job_id)
+    handle = await colony.stop_job(job_id)
     if handle is None:
         raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
     return StopResponse(

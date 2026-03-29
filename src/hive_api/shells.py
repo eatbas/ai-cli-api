@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import re
+import signal
 import shutil
 import subprocess
 import uuid
@@ -83,6 +85,7 @@ class BashSession:
         self._reader_task: asyncio.Task[None] | None = None
         self._current_run: _ActiveRun | None = None
         self._run_lock = asyncio.Lock()
+        self._interrupt_lock = asyncio.Lock()
 
     async def ensure_started(self) -> None:
         if self.process and self.process.returncode is None:
@@ -96,6 +99,8 @@ class BashSession:
         env = {**os.environ, "PYTHONUTF8": "1"}
         if os.name == "nt":
             kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        else:
+            kwargs["start_new_session"] = True
         self.process = await asyncio.create_subprocess_exec(
             self.shell_path,
             "--noprofile",
@@ -122,15 +127,79 @@ class BashSession:
         await process.wait()
         if self._reader_task:
             await self._reader_task
+        self._dispose_process()
 
     async def interrupt(self) -> None:
-        """Send Ctrl-C to the running bash process to cancel the current command."""
-        if self.process and self.process.stdin and not self.process.stdin.is_closing():
-            self.process.stdin.write(b"\x03\n")
+        """Stop the active shell tree so the current CLI cannot keep running."""
+        async with self._interrupt_lock:
+            process = self.process
+            if process is None or process.returncode is not None:
+                return
+
+            if os.name == "nt":
+                await self._kill_windows_process_tree(process.pid)
+                await process.wait()
+                await self._stop_reader_task()
+                self._dispose_process()
+                return
+
             try:
-                await self.process.stdin.drain()
-            except ConnectionResetError:
+                os.killpg(process.pid, signal.SIGINT)
+            except ProcessLookupError:
+                return
+
+            try:
+                await asyncio.wait_for(process.wait(), timeout=1.0)
+                await self._stop_reader_task()
+                self._dispose_process()
+                return
+            except asyncio.TimeoutError:
                 pass
+
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                return
+            await process.wait()
+            await self._stop_reader_task()
+            self._dispose_process()
+
+    async def _kill_windows_process_tree(self, pid: int) -> None:
+        """Kill the bash process and its entire child tree with taskkill /T."""
+        kwargs: dict[str, object] = {
+            "stdout": asyncio.subprocess.DEVNULL,
+            "stderr": asyncio.subprocess.DEVNULL,
+        }
+        if os.name == "nt":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+        proc = await asyncio.create_subprocess_exec(
+            "taskkill", "/T", "/F", "/PID", str(pid),
+            **kwargs,
+        )
+        await proc.wait()
+
+    async def _stop_reader_task(self) -> None:
+        current = self._current_run
+        if current and not current.future.done():
+            current.future.set_exception(ShellSessionError("bash drone terminated unexpectedly"))
+
+        reader_task = self._reader_task
+        if reader_task is None or reader_task.done():
+            return
+
+        reader_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await reader_task
+
+    def _dispose_process(self) -> None:
+        process = self.process
+        if process is None:
+            return
+        transport = getattr(process, "_transport", None)
+        if transport is not None:
+            transport.close()
+        self.process = None
+        self._reader_task = None
 
     async def run_script(self, script: str, on_line: Callable[[str], Awaitable[None]]) -> int:
         await self.ensure_started()

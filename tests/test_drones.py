@@ -238,7 +238,7 @@ async def test_cancel_queued_job(loaded_config):
         manager.register_job(h2)
 
         # Cancel the second (queued) job
-        result = manager.stop_job(h2.job_id)
+        result = await manager.stop_job(h2.job_id)
         assert result is not None
         assert result.status.value == "stopped"
 
@@ -249,6 +249,41 @@ async def test_cancel_queued_job(loaded_config):
         # Second should raise JobCancelledError
         with pytest.raises(JobCancelledError):
             await h2.result_future
+    finally:
+        await manager.stop()
+
+
+@pytest.mark.asyncio()
+async def test_cancel_running_job_terminates_cli_promptly_and_recovers(loaded_config):
+    from hive_api.models.enums import JobStatus
+    from hive_api.shells import JobCancelledError
+
+    manager = Colony(loaded_config)
+    await manager.start()
+    try:
+        drone = manager.get_drone(ProviderName.CODEX, "codex-5.3")
+        assert drone is not None
+
+        handle = await drone.submit(_new_request(ProviderName.CODEX, "codex-5.3", prompt="slow"))
+        manager.register_job(handle)
+
+        for _ in range(20):
+            if handle.status == JobStatus.RUNNING:
+                break
+            await asyncio.sleep(0.05)
+
+        assert handle.status == JobStatus.RUNNING
+
+        stopped = await manager.stop_job(handle.job_id)
+        assert stopped is not None
+        assert stopped.status.value == "stopped"
+
+        with pytest.raises(JobCancelledError):
+            await asyncio.wait_for(handle.result_future, timeout=2.0)
+
+        follow_up = await drone.submit(_new_request(ProviderName.CODEX, "codex-5.3", prompt="recover"))
+        response = await asyncio.wait_for(follow_up.result_future, timeout=2.0)
+        assert "recover" in response.final_text
     finally:
         await manager.stop()
 
