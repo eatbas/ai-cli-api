@@ -17,7 +17,13 @@ cli_timeout = 0
 [providers.codex]
 enabled = true
 executable = ""
-models = ["codex-5.3", "gpt-5.4", "gpt-5.4-mini"]
+models = [
+  "gpt-5.4",
+  "gpt-5.4-mini",
+  "gpt-5.3-codex",
+  "gpt-5.2-codex",
+  "gpt-5.1-codex-mini",
+]
 default_options = { extra_args = [] }
 cli_timeout = 0
 

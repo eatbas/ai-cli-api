@@ -52,7 +52,7 @@ class TestProviderModelDropdowns:
         console_page.wait_for_timeout(200)
         model_options = console_page.locator("#model option")
         models = [model_options.nth(i).get_attribute("value") for i in range(model_options.count())]
-        assert "codex-5.3" in models
+        assert "gpt-5.3-codex" in models
         assert "gpt-5.4-mini" in models
 
     def test_kimi_models(self, console_page: Page):

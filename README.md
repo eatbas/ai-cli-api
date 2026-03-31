@@ -33,7 +33,7 @@ Interactive API docs are available at `/docs` (Swagger) and `/redoc` (ReDoc).
 | Provider     | CLI executable | Default models                           | Resume |
 | ------------ | -------------- | ---------------------------------------- | ------ |
 | **Gemini**   | `gemini`       | `gemini-3-flash-preview`                 | Yes |
-| **Codex**    | `codex`        | `codex-5.3`, `gpt-5.4`, `gpt-5.4-mini`  | Yes    |
+| **Codex**    | `codex`        | `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.2-codex`, `gpt-5.1-codex-mini` | Yes    |
 | **Claude**   | `claude`       | `opus`, `sonnet`, `haiku`                | Yes    |
 | **Kimi**     | `kimi`         | `kimi-code/kimi-for-coding`              | Yes    |
 | **Copilot**  | `copilot`      | `claude-sonnet-4.6`, `claude-haiku-4.5`, `claude-opus-4.6`, `gpt-5.4`, `gpt-5.3-codex`, `gpt-5.4-mini` | Yes |

@@ -46,7 +46,7 @@ class TestStreamingRequest:
 
     def test_codex_streaming_request(self, console_page: Page, tmp_path):
         console_page.select_option("#provider", "codex")
-        console_page.select_option("#model", "codex-5.3")
+        console_page.select_option("#model", "gpt-5.3-codex")
         console_page.fill("#workspace_path", str(tmp_path.resolve()))
         console_page.fill("#prompt", "hello codex")
         console_page.click("#send-button")

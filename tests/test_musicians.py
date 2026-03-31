@@ -130,16 +130,16 @@ async def test_musician_recovers_after_failure(loaded_config):
     manager = Orchestra(loaded_config)
     await manager.start()
     try:
-        musician = manager.get_musician(InstrumentName.CODEX, "codex-5.3")
+        musician = manager.get_musician(InstrumentName.CODEX, "gpt-5.3-codex")
         assert musician is not None
 
         # First request fails
-        h1 = await musician.submit(_new_request(InstrumentName.CODEX, "codex-5.3", prompt="fail"))
+        h1 = await musician.submit(_new_request(InstrumentName.CODEX, "gpt-5.3-codex", prompt="fail"))
         with pytest.raises(Exception):
             await h1.result_future
 
         # Second request should succeed (musician recovers)
-        h2 = await musician.submit(_new_request(InstrumentName.CODEX, "codex-5.3", prompt="recover"))
+        h2 = await musician.submit(_new_request(InstrumentName.CODEX, "gpt-5.3-codex", prompt="recover"))
         r2 = await h2.result_future
         assert "recover" in r2.final_text
     finally:
@@ -261,10 +261,10 @@ async def test_cancel_running_score_terminates_cli_promptly_and_recovers(loaded_
     manager = Orchestra(loaded_config)
     await manager.start()
     try:
-        musician = manager.get_musician(InstrumentName.CODEX, "codex-5.3")
+        musician = manager.get_musician(InstrumentName.CODEX, "gpt-5.3-codex")
         assert musician is not None
 
-        handle = await musician.submit(_new_request(InstrumentName.CODEX, "codex-5.3", prompt="slow"))
+        handle = await musician.submit(_new_request(InstrumentName.CODEX, "gpt-5.3-codex", prompt="slow"))
         manager.register_score(handle)
 
         for _ in range(20):
@@ -281,7 +281,7 @@ async def test_cancel_running_score_terminates_cli_promptly_and_recovers(loaded_
         with pytest.raises(ScoreCancelledError):
             await asyncio.wait_for(handle.result_future, timeout=2.0)
 
-        follow_up = await musician.submit(_new_request(InstrumentName.CODEX, "codex-5.3", prompt="recover"))
+        follow_up = await musician.submit(_new_request(InstrumentName.CODEX, "gpt-5.3-codex", prompt="recover"))
         response = await asyncio.wait_for(follow_up.result_future, timeout=2.0)
         assert "recover" in response.final_text
     finally:

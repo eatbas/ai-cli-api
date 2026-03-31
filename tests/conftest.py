@@ -59,7 +59,7 @@ default_options = {{ extra_args = [] }}
 [providers.codex]
 enabled = true
 executable = "{escaped_providers['codex']}"
-models = ["codex-5.3", "gpt-5.4-mini"]
+models = ["gpt-5.3-codex", "gpt-5.4-mini"]
 default_options = {{ extra_args = [] }}
 
 [providers.claude]

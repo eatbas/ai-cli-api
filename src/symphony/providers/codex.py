@@ -8,9 +8,7 @@ class CodexAdapter(ProviderAdapter):
     name = InstrumentName.CODEX
     default_executable = "codex"
     session_reference_format = "thread-id"
-    model_aliases = {
-        "codex-5.3": "gpt-5.3-codex",
-    }
+    model_aliases: dict[str, str] = {}
 
     def build_new_command(self, *, executable: str, prompt: str, model: str, provider_options: dict) -> CommandSpec:
         argv = [executable, "exec", "--json", "--full-auto"]

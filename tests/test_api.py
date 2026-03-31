@@ -49,7 +49,7 @@ def test_chat_json_and_streaming(config_path, tmp_path):
 
         stream_body = {
             "provider": "codex",
-            "model": "codex-5.3",
+            "model": "gpt-5.3-codex",
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
@@ -303,7 +303,7 @@ def test_chat_response_includes_score_id(config_path, tmp_path):
     with TestClient(app) as client:
         body = {
             "provider": "codex",
-            "model": "codex-5.3",
+            "model": "gpt-5.3-codex",
             "workspace_path": str(tmp_path.resolve()),
             "mode": "new",
             "prompt": "hello",
