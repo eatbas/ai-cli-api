@@ -22,6 +22,7 @@ class Musician:
         default_options: dict[str, Any],
         session_models: dict[tuple[InstrumentName, str], str],
         cli_timeout: float = 300.0,
+        idle_timeout: float = 300.0,
     ) -> None:
         self.provider = provider
         self.model = model
@@ -31,6 +32,7 @@ class Musician:
         self.default_options = default_options
         self.session_models = session_models
         self.cli_timeout = cli_timeout or 0.0
+        self.idle_timeout = idle_timeout or 0.0
         self.shell = BashSession(shell_path)
         self.queue: asyncio.Queue[tuple[ChatRequest, ScoreHandle]] = asyncio.Queue()
         self.busy = False
@@ -187,7 +189,11 @@ class Musician:
         if parse_state.session_ref:
             await handle.publish({"type": "provider_session", "provider_session_ref": parse_state.session_ref})
 
+        idle_event = asyncio.Event()
+        idle_event.set()  # Mark as active initially.
+
         async def on_line(line: str) -> None:
+            idle_event.set()  # Reset idle timer on every output line.
             if handle.cancelled.is_set():
                 return
             for event in self.adapter.parse_output_line(line, parse_state):
@@ -195,7 +201,10 @@ class Musician:
 
         script = self.adapter.make_shell_script(request.workspace_path, command)
         timeout = self.cli_timeout if self.cli_timeout > 0 else None
-        watcher = asyncio.create_task(self._cancel_watcher(handle))
+        cancel_watcher = asyncio.create_task(self._cancel_watcher(handle))
+        idle_watcher = asyncio.create_task(
+            self._idle_watcher(handle, idle_event)
+        ) if self.idle_timeout > 0 else None
         try:
             exit_code = await asyncio.wait_for(
                 self.shell.run_script(script, on_line),
@@ -216,12 +225,15 @@ class Musician:
                 raise ScoreCancelledError(f"Score {handle.score_id} was stopped") from exc
             raise
         finally:
-            if not watcher.done():
-                watcher.cancel()
-            try:
-                await watcher
-            except (asyncio.CancelledError, Exception):
-                pass
+            for task in (cancel_watcher, idle_watcher):
+                if task is not None and not task.done():
+                    task.cancel()
+            for task in (cancel_watcher, idle_watcher):
+                if task is not None:
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
 
         # Check if the score was cancelled during execution
         if handle.cancelled.is_set():
@@ -277,6 +289,34 @@ class Musician:
             }
         )
         return response
+
+    async def _idle_watcher(self, handle: ScoreHandle, idle_event: asyncio.Event) -> None:
+        """Kill the running CLI if no output is received for ``idle_timeout`` seconds.
+
+        Runs as a background task alongside :meth:`_execute_request`. Each line of
+        CLI output sets ``idle_event``; this watcher clears it and waits. If the
+        event is not set again within the timeout window, the CLI is assumed stuck
+        and the shell is interrupted, causing the run to fail with a clear message.
+        """
+        while not handle.cancelled.is_set():
+            idle_event.clear()
+            try:
+                await asyncio.wait_for(idle_event.wait(), timeout=self.idle_timeout)
+            except asyncio.TimeoutError:
+                if handle.cancelled.is_set():
+                    return
+                await self.shell.interrupt()
+                await asyncio.sleep(0.5)
+                if self.shell.process and self.shell.process.returncode is None:
+                    await self.shell.stop()
+                    await self.shell.start()
+                    self.ready = True
+                else:
+                    self.ready = False
+                raise ShellSessionError(
+                    f"{self.provider.value} CLI produced no output for "
+                    f"{self.idle_timeout:.0f}s — assumed stuck"
+                )
 
     async def _cancel_watcher(self, handle: ScoreHandle) -> None:
         """Kill the running CLI as soon as the score's cancelled flag is set.

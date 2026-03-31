@@ -73,6 +73,7 @@ class Orchestra:
                     default_options=instrument_config.default_options,
                     session_models=self.session_models,
                     cli_timeout=instrument_config.cli_timeout,
+                    idle_timeout=instrument_config.idle_timeout,
                 )
                 all_pending.append(((instrument, model), musician))
 
@@ -134,6 +135,7 @@ class Orchestra:
                 default_options=template.default_options,
                 session_models=self.session_models,
                 cli_timeout=template.cli_timeout,
+                idle_timeout=template.idle_timeout,
             )
             await new_musician.start()
             pool.append(new_musician)
@@ -301,6 +303,7 @@ class Orchestra:
                     default_options=instrument_config.default_options,
                     session_models=self.session_models,
                     cli_timeout=instrument_config.cli_timeout,
+                    idle_timeout=instrument_config.idle_timeout,
                 )
                 await musician.start()
                 self.musicians[(provider, model)] = [musician]
