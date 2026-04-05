@@ -10,3 +10,7 @@ test-results/
 # Local Claude skills
 .claude/skills/
 
+# Frontend
+frontend/web/node_modules/
+frontend/web/dist/
+

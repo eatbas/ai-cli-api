@@ -7,11 +7,11 @@ Symphony -- coordinated AI CLI orchestra for **Gemini**, **Codex**, **Claude**, 
 - Starts one warm background bash musician per configured `provider + model`
 - Accepts API calls over HTTP
 - Runs the matching CLI inside the already-open bash musician
-- Streams output back over Server-Sent Events or returns JSON
+- Returns a durable score ID immediately (HTTP 202) — poll or connect via WebSocket for results
 - Keeps no persistent conversation state in the bridge
 - Periodically checks for CLI updates and can auto-update idle musicians
 
-The caller must send `provider`, `model`, `workspace_path`, and when resuming, the provider-native session reference.
+The caller sends `provider`, `model`, `workspace_path`, and a prompt. When resuming, include the provider-native session reference. Track results via polling or WebSocket.
 
 ## Quick start
 
@@ -105,7 +105,7 @@ Returns the musician inventory, status, and queue depth.
 ### Chat
 
 #### `POST /v1/chat`
-Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
+Submits a prompt to a provider. Returns **HTTP 202 Accepted** immediately with a `score_id`. Use polling or WebSocket to track progress.
 
 **New chat:**
 ```json
@@ -115,7 +115,6 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
   "workspace_path": "/home/user/project",
   "mode": "new",
   "prompt": "say hello in one word",
-  "stream": true,
   "provider_options": {}
 }
 ```
@@ -129,7 +128,6 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
   "mode": "resume",
   "prompt": "say hi in one word",
   "provider_session_ref": "e3c7d445-d2f3-4e61-931f-62d7182902e6",
-  "stream": false,
   "provider_options": {}
 }
 ```
@@ -142,19 +140,41 @@ Sends a prompt to a provider. Supports streaming (SSE) and JSON response modes.
 | `effort` | Claude | Reasoning effort: `"low"`, `"medium"`, or `"high"`. Omit for CLI default (medium). |
 | `max_turns` | Claude | Maximum autonomous tool-use turns (integer as string). Omit for CLI default. |
 
-**SSE events** (when `stream: true`):
+#### `GET /v1/chat/{score_id}` (Polling)
+Returns the authoritative `ScoreSnapshot` for a score. Poll this endpoint at your preferred interval until the status reaches a terminal state (`completed`, `failed`, or `stopped`).
+
+**ScoreSnapshot fields:**
+
+| Field | Description |
+|-------|-------------|
+| `score_id` | Unique score identifier. |
+| `status` | `queued`, `running`, `completed`, `failed`, or `stopped`. |
+| `accumulated_text` | All output captured so far. |
+| `final_text` | Authoritative output text (set when terminal). |
+| `provider_session_ref` | Session reference for resume mode. |
+| `exit_code` | CLI process exit code (set when terminal). |
+| `warnings` | Non-fatal warnings emitted by the CLI. |
+| `created_at` / `started_at` / `updated_at` / `finished_at` | RFC 3339 timestamps. |
+
+#### `WS /v1/chat/{score_id}/ws` (WebSocket)
+Opens a WebSocket connection for real-time score events. Receives an initial `score_snapshot` message, then individual events as they occur.
+
+**WebSocket event types:**
 
 | Event               | Description                            |
 | ------------------- | -------------------------------------- |
-| `run_started`       | Musician picked up the score (includes `score_id`) |
+| `score_snapshot`    | Full score state (sent on connect)     |
+| `run_started`       | Musician picked up the score           |
 | `provider_session`  | Session ID from the provider CLI       |
 | `output_delta`      | Incremental text chunk                 |
 | `completed`         | Final text and exit code               |
 | `failed`            | Error message and exit code            |
 | `stopped`           | Score was cancelled by the user        |
 
+The connection closes automatically when the score reaches a terminal state.
+
 #### `POST /v1/chat/{score_id}/stop`
-Stops a running or queued score. The `score_id` is returned in the `run_started` SSE event or in the JSON response.
+Stops a running or queued score. The `score_id` is returned in the accepted response from `POST /v1/chat`.
 
 - If the score is **running**, sends an interrupt signal (Ctrl-C) to the CLI process.
 - If the score is **queued**, removes it before execution begins.
